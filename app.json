@@ -27,7 +27,11 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.mindfulmastery.app"
+      "package": "com.mindfulmastery.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -49,8 +53,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "174681cc-f92f-4dc4-a5e1-6b91026be5b6"
+        "projectId": "2483b04a-d9a6-4c9a-98d4-1b1dfe967ab0"
       }
-    }
+    },
+    "owner": "aaronpeterson3"
   }
 }
