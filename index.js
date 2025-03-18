@@ -1,5 +1,7 @@
 import { registerRootComponent } from 'expo';
 import App from './App';
 
-// Register the main component
+console.log('index.js loaded - starting application with standard entry point');
+
+// Register the App component as the root component
 registerRootComponent(App);

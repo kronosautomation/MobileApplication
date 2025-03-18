@@ -27,6 +27,61 @@ export interface RegisterData extends LoginCredentials {
   lastName?: string;
 }
 
+// Theme Types
+export interface ThemeType {
+  isDark: boolean;
+  colors: {
+    primary: string;
+    secondary: string;
+    background: string;
+    card: string;
+    text: string;
+    border: string;
+    notification: string;
+    error: string;
+    success: string;
+    warning: string;
+    info: string;
+    disabled: string;
+  };
+  spacing: {
+    xs: number;
+    s: number;
+    m: number;
+    l: number;
+    xl: number;
+    xxl: number;
+  };
+  typography: {
+    fontFamily: {
+      regular: string;
+      medium: string;
+      semiBold: string;
+      bold: string;
+    };
+    fontSize: {
+      xs: number;
+      s: number;
+      m: number;
+      l: number;
+      xl: number;
+      xxl: number;
+    };
+  };
+}
+
+// Authentication Context Type
+export interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  isLoggedIn: boolean;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  updateProfile: (data: Partial<User>) => Promise<void>;
+}
+
 // Meditation Types
 export enum DifficultyLevel {
   Beginner = 0,
@@ -164,6 +219,13 @@ export enum AchievementType {
   SpecificFocusArea = 5,
 }
 
+// Network Status Types
+export interface NetworkStatus {
+  isConnected: boolean;
+  isInternetReachable: boolean;
+  lastChecked: string;
+}
+
 // Navigation Types
 export type RootStackParamList = {
   Auth: undefined;
@@ -184,6 +246,10 @@ export type MainTabParamList = {
   Journal: undefined;
   Achievements: undefined;
   Profile: undefined;
+};
+
+export type HomeStackParamList = {
+  HomeMain: undefined;
 };
 
 export type MeditationStackParamList = {
@@ -214,3 +280,8 @@ export type AchievementsStackParamList = {
   AchievementsList: undefined;
   AchievementDetail: { achievementId: string };
 };
+
+// Global declarations
+declare global {
+  var HermesInternal: null | {};
+}

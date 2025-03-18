@@ -1,12 +1,10 @@
 {
   "expo": {
     "name": "MindfulMastery",
-    "slug": "mindfulmastery",
+    "slug": "mindful-mastery",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mindfulmastery",
-    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
@@ -25,37 +23,12 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFFFFF"
       },
-      "package": "com.mindfulmastery.app",
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      "package": "com.mindfulmastery.app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-localization",
-      [
-        "expo-updates",
-        {
-          "username": "aaronpeterson3"
-        }
-      ],
-      [
-        "expo-av",
-        {
-          "microphonePermission": "Allow MindfulMastery to access your microphone."
-        }
-      ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "2483b04a-d9a6-4c9a-98d4-1b1dfe967ab0"
-      }
-    },
-    "owner": "aaronpeterson3"
+    }
   }
 }

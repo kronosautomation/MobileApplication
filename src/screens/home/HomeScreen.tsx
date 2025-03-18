@@ -1,342 +1,116 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  RefreshControl,
-  useWindowDimensions,
-} from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../context/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
-import { useSubscription } from '../../context/SubscriptionContext';
-import { Text, Card, CardContent, CardTitle, Badge } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
-import { GuidedMeditation, Achievement } from '../../types';
-import { meditationService, achievementsService } from '../../api';
-import MeditationCard from '../../components/meditation/MeditationCard';
-import AchievementCard from '../../components/achievements/AchievementCard';
-import LottieView from 'lottie-react-native';
-
-// Get today's date in readable format
-const getTodayDate = () => {
-  const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric' };
-  return new Date().toLocaleDateString('en-US', options);
-};
 
 const HomeScreen: React.FC = () => {
-  const navigation = useNavigation<any>();
-  const { currentTheme, isDark } = useTheme();
+  const navigation = useNavigation();
+  const { currentTheme } = useTheme();
   const { colors, spacing } = currentTheme;
-  const { user } = useAuth();
-  const { isPremium } = useSubscription();
-  const { width } = useWindowDimensions();
-  
-  // State variables
-  const [featuredMeditations, setFeaturedMeditations] = useState<GuidedMeditation[]>([]);
-  const [recentMeditations, setRecentMeditations] = useState<GuidedMeditation[]>([]);
-  const [recommendedMeditations, setRecommendedMeditations] = useState<GuidedMeditation[]>([]);
-  const [newAchievements, setNewAchievements] = useState<Achievement[]>([]);
-  const [currentStreak, setCurrentStreak] = useState<number>(0);
-  const [meditationToday, setMeditationToday] = useState<boolean>(false);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchData();
-  }, []);
-  
-  // Function to fetch all required data
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Fetch featured meditations
-      const featured = await meditationService.getFeaturedMeditations(5);
-      setFeaturedMeditations(featured);
-      
-      // Fetch recent meditation sessions (simplified for demo)
-      // In a real app, this would come from the user's history
-      const allMeditations = await meditationService.getMeditations(1, 5);
-      setRecentMeditations(allMeditations.meditations.slice(0, 2));
-      
-      // Set recommended meditations based on user preferences (simplified for demo)
-      // In a real app, this would be personalized based on user data
-      setRecommendedMeditations(allMeditations.meditations.slice(2, 5));
-      
-      // Check if user meditated today
-      const today = new Date();
-      const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-      const sessions = await meditationService.getMeditationHistory(startOfDay);
-      setMeditationToday(sessions.length > 0);
-      
-      // Fetch user's streak information
-      const streakInfo = await achievementsService.getStreakInfo();
-      setCurrentStreak(streakInfo.currentStreak);
-      
-      // Fetch newly unlocked achievements
-      const achievements = await achievementsService.getNewlyUnlockedAchievements();
-      setNewAchievements(achievements);
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching home data:', error);
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle pull-to-refresh
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchData();
-    setIsRefreshing(false);
-  };
-  
-  // Handle meditation card press
-  const handleMeditationPress = (meditation: GuidedMeditation) => {
-    navigation.navigate('Meditations', {
-      screen: 'MeditationDetail',
-      params: { meditationId: meditation.id }
-    });
-  };
-  
-  // Handle achievement card press
-  const handleAchievementPress = (achievement: Achievement) => {
-    navigation.navigate('Achievements', {
-      screen: 'AchievementDetail',
-      params: { achievementId: achievement.id }
-    });
-  };
-  
-  // Handle "See All" press for categories
-  const handleSeeAllPress = (category: string) => {
-    switch (category) {
-      case 'meditations':
-        navigation.navigate('Meditations');
-        break;
-      case 'achievements':
-        navigation.navigate('Achievements');
-        break;
-      default:
-        break;
-    }
-  };
-  
-  // Calculate greeting based on time of day
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-  
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.default }]}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text variant="h4">
-            {getGreeting()}, {user?.firstName || 'there'}!
+          <Text style={[styles.greeting, { color: colors.text.primary }]}>
+            Good morning
           </Text>
-          <Text variant="body2" color="secondary">
-            {getTodayDate()}
+          <Text style={[styles.date, { color: colors.text.secondary }]}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
         </View>
         
-        <TouchableOpacity
-          style={[styles.profileButton, { backgroundColor: colors.background.paper }]}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          {user?.profileImageUrl ? (
-            <Image
-              source={{ uri: user.profileImageUrl }}
-              style={styles.profileImage}
-            />
-          ) : (
-            <Ionicons name="person" size={24} color={colors.primary.main} />
-          )}
-        </TouchableOpacity>
+        <View style={[styles.profileButton, { backgroundColor: colors.background.paper }]}>
+          <Ionicons name="person" size={24} color={colors.primary.main} />
+        </View>
       </View>
       
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.primary.main]}
-            tintColor={colors.primary.main}
-          />
-        }
-      >
+      <ScrollView contentContainerStyle={styles.content}>
         {/* Daily Progress Card */}
-        <Card style={styles.streakCard}>
-          <View style={styles.streakContent}>
-            <View style={styles.streakInfo}>
-              <Text variant="h3">Your Daily Progress</Text>
-              
-              <View style={styles.streakRow}>
-                <Ionicons
-                  name="flame"
-                  size={24}
-                  color={currentStreak > 0 ? colors.warning.main : colors.text.disabled}
-                />
-                <Text variant="h4" style={styles.streakText}>
-                  {currentStreak} day{currentStreak !== 1 ? 's' : ''} streak
-                </Text>
-              </View>
-              
-              <View style={styles.meditationStatus}>
-                <Ionicons
-                  name={meditationToday ? "checkmark-circle" : "timer-outline"}
-                  size={20}
-                  color={meditationToday ? colors.success.main : colors.text.secondary}
-                />
-                <Text variant="body" color={meditationToday ? 'success' : 'secondary'} style={styles.statusText}>
-                  {meditationToday ? 'Meditation completed today' : 'No meditation yet today'}
-                </Text>
-              </View>
-              
-              <TouchableOpacity
-                style={[styles.meditateButton, { backgroundColor: colors.primary.main }]}
-                onPress={() => navigation.navigate('Meditations')}
-              >
-                <Text variant="button" color="light">
-                  Meditate Now
-                </Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.streakAnimation}>
-              <LottieView
-                source={require('../../../assets/animations/meditation.json')}
-                autoPlay
-                loop
-                style={styles.animation}
-              />
-            </View>
+        <View style={[styles.card, { backgroundColor: colors.background.paper }]}>
+          <Text style={[styles.cardTitle, { color: colors.text.primary }]}>
+            Your Daily Progress
+          </Text>
+          
+          <View style={styles.streakRow}>
+            <Ionicons name="flame" size={24} color={colors.warning.main} />
+            <Text style={[styles.streakText, { color: colors.text.primary }]}>
+              0 days streak
+            </Text>
           </View>
-        </Card>
-        
-        {/* New Achievements Section */}
-        {newAchievements.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text variant="h3">New Achievements</Text>
-              <TouchableOpacity onPress={() => handleSeeAllPress('achievements')}>
-                <Text variant="body2" color="primary">
-                  See All
-                </Text>
-              </TouchableOpacity>
-            </View>
-            
-            {newAchievements.map(achievement => (
-              <AchievementCard
-                key={achievement.id}
-                achievement={achievement}
-                onPress={handleAchievementPress}
-              />
-            ))}
+          
+          <View style={styles.statusRow}>
+            <Ionicons name="timer-outline" size={20} color={colors.text.secondary} />
+            <Text style={[styles.statusText, { color: colors.text.secondary }]}>
+              No meditation yet today
+            </Text>
           </View>
-        )}
+          
+          <TouchableOpacity 
+            style={[styles.button, { backgroundColor: colors.primary.main }]}
+            onPress={() => navigation.navigate('Meditations')}
+          >
+            <Text style={[styles.buttonText, { color: colors.primary.contrast }]}>
+              Meditate Now
+            </Text>
+          </TouchableOpacity>
+        </View>
         
         {/* Featured Meditations */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text variant="h3">Featured Meditations</Text>
-            <TouchableOpacity onPress={() => handleSeeAllPress('meditations')}>
-              <Text variant="body2" color="primary">
+            <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
+              Featured Meditations
+            </Text>
+            <TouchableOpacity>
+              <Text style={[styles.seeAll, { color: colors.primary.main }]}>
                 See All
               </Text>
             </TouchableOpacity>
           </View>
           
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScroll}
-          >
-            {featuredMeditations.map(meditation => (
-              <MeditationCard
-                key={meditation.id}
-                meditation={meditation}
-                onPress={handleMeditationPress}
-                horizontal
-              />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+            {[1, 2, 3].map((item) => (
+              <View 
+                key={item} 
+                style={[styles.meditationCard, { backgroundColor: colors.background.paper }]}
+              >
+                <View style={styles.cardContent}>
+                  <Text style={[styles.meditationTitle, { color: colors.text.primary }]}>
+                    Calming Anxiety
+                  </Text>
+                  <Text style={[styles.meditationInfo, { color: colors.text.secondary }]}>
+                    10 min • Beginner
+                  </Text>
+                </View>
+              </View>
             ))}
           </ScrollView>
         </View>
         
-        {/* Continue Your Practice */}
-        {recentMeditations.length > 0 && (
-          <View style={styles.section}>
-            <Text variant="h3" style={styles.sectionTitle}>
-              Continue Your Practice
+        {/* Premium Banner */}
+        <View style={[styles.premiumCard, { backgroundColor: colors.primary.light }]}>
+          <View style={styles.premiumContent}>
+            <Text style={[styles.premiumTitle, { color: colors.primary.contrast }]}>
+              Upgrade to Premium
             </Text>
-            
-            {recentMeditations.map(meditation => (
-              <MeditationCard
-                key={meditation.id}
-                meditation={meditation}
-                onPress={handleMeditationPress}
-              />
-            ))}
+            <Text style={[styles.premiumText, { color: colors.primary.contrast }]}>
+              Unlock all meditations and features
+            </Text>
+            <TouchableOpacity 
+              style={[styles.premiumButton, { backgroundColor: colors.primary.main }]}
+              onPress={() => navigation.navigate('Profile', { screen: 'Subscription' })}
+            >
+              <Text style={[styles.premiumButtonText, { color: colors.primary.contrast }]}>
+                Upgrade
+              </Text>
+            </TouchableOpacity>
           </View>
-        )}
-        
-        {/* Recommended For You */}
-        <View style={styles.section}>
-          <Text variant="h3" style={styles.sectionTitle}>
-            Recommended For You
-          </Text>
-          
-          {recommendedMeditations.map(meditation => (
-            <MeditationCard
-              key={meditation.id}
-              meditation={meditation}
-              onPress={handleMeditationPress}
-            />
-          ))}
+          <Ionicons name="diamond" size={60} color={colors.primary.contrast} style={styles.premiumIcon} />
         </View>
-        
-        {/* Premium Upgrade Card (show only for free users) */}
-        {!isPremium && (
-          <Card style={styles.premiumCard}>
-            <CardContent>
-              <View style={styles.premiumContent}>
-                <View style={styles.premiumInfo}>
-                  <CardTitle>
-                    <Text variant="h3">Upgrade to Premium</Text>
-                  </CardTitle>
-                  
-                  <Text variant="body" style={styles.premiumText}>
-                    Unlock all meditations, advanced analytics, and more to help you on your journey.
-                  </Text>
-                  
-                  <TouchableOpacity
-                    style={[styles.upgradeButton, { backgroundColor: colors.primary.main }]}
-                    onPress={() => navigation.navigate('Profile', { screen: 'Subscription' })}
-                  >
-                    <Text variant="button" color="light">
-                      Upgrade Now
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <Ionicons name="diamond" size={60} color={colors.primary.main} />
-              </View>
-            </CardContent>
-          </Card>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -353,6 +127,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  greeting: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  date: {
+    fontSize: 14,
+  },
   profileButton: {
     width: 40,
     height: 40,
@@ -360,57 +141,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  content: {
+    padding: 20,
+    paddingBottom: 80,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  streakCard: {
+  card: {
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 24,
   },
-  streakContent: {
-    flexDirection: 'row',
-  },
-  streakInfo: {
-    flex: 1,
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
   },
   streakRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginBottom: 8,
   },
   streakText: {
     marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '500',
   },
-  meditationStatus: {
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginBottom: 16,
   },
   statusText: {
     marginLeft: 8,
+    fontSize: 14,
   },
-  meditateButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+  button: {
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 16,
-    alignSelf: 'flex-start',
   },
-  streakAnimation: {
-    width: 100,
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  animation: {
-    width: 100,
-    height: 100,
+  buttonText: {
+    fontWeight: '600',
+    fontSize: 16,
   },
   section: {
     marginBottom: 24,
@@ -419,35 +190,70 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
-    marginBottom: 16,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  seeAll: {
+    fontSize: 14,
   },
   horizontalScroll: {
-    paddingRight: 20,
+    marginLeft: -6,
+  },
+  meditationCard: {
+    width: 200,
+    height: 120,
+    marginHorizontal: 6,
+    borderRadius: 12,
+    padding: 12,
+    justifyContent: 'flex-end',
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  meditationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  meditationInfo: {
+    fontSize: 12,
   },
   premiumCard: {
-    marginBottom: 40,
-  },
-  premiumContent: {
+    borderRadius: 12,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    overflow: 'hidden',
   },
-  premiumInfo: {
+  premiumContent: {
     flex: 1,
-    marginRight: 16,
+  },
+  premiumTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   premiumText: {
-    marginVertical: 8,
+    fontSize: 14,
+    marginBottom: 12,
+    opacity: 0.9,
   },
-  upgradeButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+  premiumButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
     alignSelf: 'flex-start',
+  },
+  premiumButtonText: {
+    fontWeight: '600',
+  },
+  premiumIcon: {
+    marginLeft: 16,
+    opacity: 0.9,
   },
 });
 

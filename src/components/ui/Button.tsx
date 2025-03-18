@@ -22,6 +22,8 @@ interface ButtonProps extends TouchableOpacityProps {
   fullWidth?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -33,6 +35,8 @@ const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   style,
   textStyle,
+  accessibilityLabel,
+  accessibilityHint,
   ...props
 }) => {
   const { currentTheme, isDark } = useTheme();
@@ -146,12 +150,21 @@ const Button: React.FC<ButtonProps> = ({
       ]}
       disabled={disabled || loading}
       activeOpacity={0.7}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{
+        disabled: disabled || loading,
+        busy: loading
+      }}
       {...props}
     >
       {loading ? (
         <ActivityIndicator
           size="small"
           color={variant === 'outline' || variant === 'text' ? colors.primary.main : colors.primary.contrast}
+          testID="loading-indicator"
         />
       ) : (
         <Text

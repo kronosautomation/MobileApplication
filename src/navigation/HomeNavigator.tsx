@@ -1,9 +1,10 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/home/HomeScreen';
+import { HomeStackParamList } from '../types';
 
-// Home stack doesn't have complex navigation, just the main screen
-const Stack = createNativeStackNavigator();
+// Create stack navigator with proper typing
+const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 const HomeNavigator: React.FC = () => {
   return (
@@ -12,7 +13,7 @@ const HomeNavigator: React.FC = () => {
         headerShown: false,
       }}
     >
-      <Stack.Screen name="HomeScreen" component={HomeScreen} />
+      <Stack.Screen name="HomeMain" component={HomeScreen} />
     </Stack.Navigator>
   );
 };

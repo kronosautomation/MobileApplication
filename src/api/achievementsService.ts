@@ -2,8 +2,8 @@ import apiClient from './apiClient';
 import { Achievement } from '../types';
 
 class AchievementsService {
-  // Get all user achievements
-  async getAchievements(): Promise<Achievement[]> {
+  // Get all user achievements for the current user
+  async getUserAchievements(): Promise<Achievement[]> {
     try {
       const response = await apiClient.get<Achievement[]>('/achievements');
       return response;

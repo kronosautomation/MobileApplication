@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       
       // Login via the API
-      await authService.login(credentials);
+      const authResult = await authService.login(credentials);
       
       // Fetch user data
       const userData = await authService.getCurrentUser();
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       
       // Register via API
-      await authService.register(data);
+      const authResult = await authService.register(data);
       
       // Fetch user data
       const userData = await authService.getCurrentUser();

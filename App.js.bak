@@ -1,0 +1,344 @@
+import React, { useEffect, useState } from 'react';
+import { SafeAreaView, StyleSheet, Text, View, TouchableOpacity, Alert, Platform, ScrollView } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import * as SQLite from 'expo-sqlite';
+import { AppRegistry } from 'react-native';
+
+// Simple diagnostic app
+function App() {
+  const [log, setLog] = useState([]);
+  const [status, setStatus] = useState('Initializing...');
+  
+  // Add to log helper function
+  const addLog = (message) => {
+    console.log(message);
+    setLog((prevLog) => [...prevLog, `${new Date().toISOString().substr(11, 8)}: ${message}`]);
+  };
+
+  useEffect(() => {
+    // Diagnostic function
+    const diagnoseSQLite = async () => {
+      try {
+        addLog('Starting SQLite diagnosis');
+        setStatus('Testing SQLite...');
+        
+        // Check SQLite module
+        addLog(`Platform: ${Platform.OS}`);
+        addLog(`Hermes enabled: ${typeof HermesInternal !== 'undefined'}`);
+        
+        if (!SQLite) {
+          addLog('ERROR: SQLite module not available');
+          setStatus('Failed: SQLite not available');
+          return;
+        }
+        
+        // Log available methods
+        const methods = Object.keys(SQLite);
+        addLog(`SQLite methods: ${methods.join(', ')}`);
+        
+        // Try opening database with safe error handling
+        let db = null;
+        
+        // Using simplified name to avoid path issues
+        const DB_NAME = 'test123.db';
+        
+        try {
+          if (typeof SQLite.openDatabaseSync === 'function') {
+            addLog('Trying openDatabaseSync...');
+            db = SQLite.openDatabaseSync(DB_NAME);
+            addLog('Successfully opened database synchronously');
+          } else if (typeof SQLite.openDatabase === 'function') {
+            addLog('Trying openDatabase...');
+            db = SQLite.openDatabase(DB_NAME);
+            addLog('Successfully opened database');
+          } else {
+            addLog('ERROR: No compatible database open method found');
+            setStatus('Failed: No compatible open method');
+            return;
+          }
+        } catch (dbError) {
+          addLog(`ERROR opening database: ${JSON.stringify(dbError)}`);
+          setStatus('Failed: Error opening database');
+          return;
+        }
+        
+        // Verify db object
+        if (!db) {
+          addLog('ERROR: Database object is null after open');
+          setStatus('Failed: Null database object');
+          return;
+        }
+        
+        addLog(`Database opened successfully: ${typeof db}`);
+        addLog(`Database methods: ${Object.keys(db).join(', ')}`);
+        
+        // Try a simple transaction
+        try {
+          addLog('Attempting to create a test table...');
+          await new Promise((resolve, reject) => {
+            db.transaction(
+              (tx) => {
+                tx.executeSql(
+                  'CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY, value TEXT);',
+                  [],
+                  (_, result) => {
+                    addLog('Table created successfully');
+                    resolve(result);
+                  },
+                  (_, error) => {
+                    addLog(`Error creating table: ${error}`);
+                    reject(error);
+                    return false;
+                  }
+                );
+              },
+              (txError) => {
+                addLog(`Transaction error: ${txError}`);
+                reject(txError);
+              },
+              () => {
+                addLog('Transaction completed successfully');
+              }
+            );
+          });
+          
+          // Try inserting data
+          addLog('Attempting to insert test data...');
+          await new Promise((resolve, reject) => {
+            db.transaction(
+              (tx) => {
+                tx.executeSql(
+                  'INSERT INTO test_table (value) VALUES (?);',
+                  ['Test value ' + new Date().toISOString()],
+                  (_, result) => {
+                    addLog(`Insert successful, rowsAffected: ${result.rowsAffected}`);
+                    resolve(result);
+                  },
+                  (_, error) => {
+                    addLog(`Error inserting data: ${error}`);
+                    reject(error);
+                    return false;
+                  }
+                );
+              },
+              (txError) => {
+                addLog(`Transaction error on insert: ${txError}`);
+                reject(txError);
+              }
+            );
+          });
+          
+          // Try querying data
+          addLog('Attempting to query test data...');
+          await new Promise((resolve, reject) => {
+            db.transaction(
+              (tx) => {
+                tx.executeSql(
+                  'SELECT * FROM test_table;',
+                  [],
+                  (_, result) => {
+                    addLog(`Query successful, found ${result.rows.length} rows`);
+                    if (result.rows.length > 0) {
+                      addLog(`Sample data: ${JSON.stringify(result.rows.item(0))}`);
+                    }
+                    resolve(result);
+                  },
+                  (_, error) => {
+                    addLog(`Error querying data: ${error}`);
+                    reject(error);
+                    return false;
+                  }
+                );
+              },
+              (txError) => {
+                addLog(`Transaction error on query: ${txError}`);
+                reject(txError);
+              }
+            );
+          });
+          
+          setStatus('Success: SQLite working correctly');
+          addLog('All tests passed successfully');
+          
+        } catch (error) {
+          addLog(`Test failed with error: ${error}`);
+          setStatus('Failed: Error during testing');
+        }
+        
+      } catch (error) {
+        addLog(`Unhandled error: ${error}`);
+        setStatus('Failed: Unhandled exception');
+      }
+    };
+    
+    // Run diagnostics
+    diagnoseSQLite();
+  }, []);
+  
+  const showHelp = () => {
+    Alert.alert(
+      'SQLite Diagnostic Tool',
+      'This tool tests if SQLite is working correctly with your current setup.\n\n' +
+      'If all tests pass, you can use the updated database service.\n\n' +
+      'If tests fail, check the logs for specific errors.'
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="auto" />
+      <View style={styles.header}>
+        <Text style={styles.title}>MindfulMastery</Text>
+        <Text style={styles.subtitle}>SQLite Diagnostic Tool</Text>
+      </View>
+      
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusTitle}>Status:</Text>
+        <Text style={[
+          styles.statusText, 
+          status.includes('Success') ? styles.statusSuccess : 
+          status.includes('Failed') ? styles.statusError : 
+          styles.statusPending
+        ]}>
+          {status}
+        </Text>
+      </View>
+      
+      <View style={styles.logContainer}>
+        <Text style={styles.logTitle}>Diagnostic Log:</Text>
+        <ScrollView style={styles.logScroll}>
+          {log.map((entry, index) => (
+            <Text key={index} style={styles.logEntry}>
+              {entry}
+            </Text>
+          ))}
+          {log.length === 0 && (
+            <Text style={styles.logEmpty}>Running diagnostics...</Text>
+          )}
+        </ScrollView>
+      </View>
+      
+      <TouchableOpacity style={styles.button} onPress={showHelp}>
+        <Text style={styles.buttonText}>Help</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+}
+
+export default App;
+
+// Register component directly here
+if (Platform.OS !== 'web') {
+  AppRegistry.registerComponent('main', () => App);
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  header: {
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E9F0',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4A62FF',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#545D70',
+    marginTop: 4,
+  },
+  statusContainer: {
+    backgroundColor: '#FFFFFF',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#161C2C',
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  statusPending: {
+    color: '#F59E0B',
+  },
+  statusSuccess: {
+    color: '#10B981',
+  },
+  statusError: {
+    color: '#EF4444',
+  },
+  logContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    margin: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  logTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#161C2C',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E9F0',
+  },
+  logScroll: {
+    flex: 1,
+    padding: 16,
+  },
+  logEntry: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: '#545D70',
+    marginBottom: 4,
+  },
+  logEmpty: {
+    fontSize: 14,
+    color: '#8A94A6',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  button: {
+    backgroundColor: '#4A62FF',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

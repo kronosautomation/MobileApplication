@@ -7,15 +7,24 @@ class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthTokens> {
     try {
       const response = await apiClient.post<{
-        accessToken: string;
+        token: string;
         refreshToken: string;
-        expiresIn: number;
-      }>('/auth/login', credentials);
+        expiresAt: string;
+        user: User;
+      }>('/auth/login', {
+        email: credentials.email,
+        password: credentials.password,
+        deviceToken: 'mobile-device' // Use a device identifier
+      });
       
       // Store the tokens
-      await apiClient.setAuthTokens(response.accessToken, response.refreshToken);
+      await apiClient.setAuthTokens(response.token, response.refreshToken);
       
-      return response;
+      return {
+        accessToken: response.token,
+        refreshToken: response.refreshToken,
+        expiresIn: new Date(response.expiresAt).getTime() - Date.now()
+      };
     } catch (error) {
       throw this.handleError(error, 'Login failed');
     }
@@ -25,15 +34,25 @@ class AuthService {
   async register(data: RegisterData): Promise<AuthTokens> {
     try {
       const response = await apiClient.post<{
+        userId: string;
         accessToken: string;
         refreshToken: string;
-        expiresIn: number;
-      }>('/auth/register', data);
+      }>('/auth/register', {
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+        deviceToken: 'mobile-device' // Use a device identifier
+      });
       
       // Store the tokens
       await apiClient.setAuthTokens(response.accessToken, response.refreshToken);
       
-      return response;
+      return {
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        expiresIn: 900000 // Default to 15 minutes
+      };
     } catch (error) {
       throw this.handleError(error, 'Registration failed');
     }
@@ -76,7 +95,8 @@ class AuthService {
   // Request a password reset
   async requestPasswordReset(email: string): Promise<void> {
     try {
-      await apiClient.post('/auth/request-password-reset', { email });
+      // Note: This endpoint may need to be updated once the backend adds this functionality
+      await apiClient.post('/user-profile/request-password-reset', { email });
     } catch (error) {
       throw this.handleError(error, 'Failed to request password reset');
     }
@@ -85,9 +105,23 @@ class AuthService {
   // Reset password with token
   async resetPassword(token: string, newPassword: string): Promise<void> {
     try {
-      await apiClient.post('/auth/reset-password', { token, newPassword });
+      // Note: This endpoint may need to be updated once the backend adds this functionality
+      await apiClient.post('/user-profile/reset-password', { token, newPassword });
     } catch (error) {
       throw this.handleError(error, 'Failed to reset password');
+    }
+  }
+
+  // Update password (when logged in)
+  async updatePassword(currentPassword: string, newPassword: string, confirmNewPassword: string): Promise<void> {
+    try {
+      await apiClient.put('/user-profile/password', {
+        currentPassword,
+        newPassword,
+        confirmNewPassword
+      });
+    } catch (error) {
+      throw this.handleError(error, 'Failed to update password');
     }
   }
 

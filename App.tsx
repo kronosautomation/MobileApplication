@@ -1,45 +1,54 @@
-import React, { useEffect, useState } from 'react';
-import { StatusBar, LogBox } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StatusBar, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
-import { AppProvider, useAuth, useTheme } from './src/context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Import navigation stacks
+import AuthStack from './src/navigation/stacks/AuthStack';
 import AppNavigator from './src/navigation/AppNavigator';
 
-// Ignore specific deprecation warnings that we can't fix
-LogBox.ignoreLogs([
-  'ViewPropTypes will be removed from React Native',
-  'AsyncStorage has been extracted from react-native',
-]);
+// Import auth context provider
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 
-// Keep the splash screen visible until the app is ready
-SplashScreen.preventAutoHideAsync();
+// Keep splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync().catch(err => {
+  console.warn('Error preventing splash screen hide:', err);
+});
+
+// Main navigation container that handles auth state
+const RootNavigator = () => {
+  const { user, isLoading } = useAuth();
+
+  // This determines which stack to show based on auth state
+  return (
+    <NavigationContainer>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4A62FF" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      ) : user ? (
+        <AppNavigator />
+      ) : (
+        <AuthStack />
+      )}
+    </NavigationContainer>
+  );
+};
 
 // Main App component
 export default function App() {
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <AppProvider>
-          <AppContent />
-        </AppProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
-  );
-}
-
-// App content with authentication and theme context
-function AppContent() {
-  const [appIsReady, setAppIsReady] = useState(false);
-  const { isDark } = useTheme();
+  const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   
   useEffect(() => {
-    // Load resources asynchronously
     async function prepare() {
       try {
+        console.log('Loading resources...');
+        
         // Load fonts
         await Font.loadAsync({
           'Inter-Regular': require('./assets/fonts/Inter-Regular.ttf'),
@@ -49,40 +58,85 @@ function AppContent() {
           ...Ionicons.font,
         });
         
-        // Add artificial delay to ensure smooth transition
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Initialize AsyncStorage with simple test
+        await AsyncStorage.setItem('@MindfulMastery:test', 'Storage Test');
+        
+        console.log('Resources loaded successfully');
       } catch (e) {
-        console.warn(e);
+        console.error('Error loading resources:', e);
+        setError(e instanceof Error ? e : new Error('Failed to load resources'));
       } finally {
-        // App is ready to be displayed
-        setAppIsReady(true);
+        setIsReady(true);
       }
     }
-
+    
     prepare();
   }, []);
-
+  
   useEffect(() => {
-    // Hide the splash screen once the app is ready
-    if (appIsReady) {
-      SplashScreen.hideAsync();
+    if (isReady) {
+      SplashScreen.hideAsync().catch(err => {
+        console.warn('Error hiding splash screen:', err);
+      });
     }
-  }, [appIsReady]);
-
-  if (!appIsReady) {
-    return null;
+  }, [isReady]);
+  
+  if (!isReady) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4A62FF" />
+        <Text style={styles.loadingText}>Loading resources...</Text>
+      </View>
+    );
   }
-
+  
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+        <Text style={styles.errorMessage}>{error.message}</Text>
+      </View>
+    );
+  }
+  
+  // Return the app with authentication
   return (
-    <>
-      <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor="transparent"
-        translucent
-      />
-      <NavigationContainer>
-        <AppNavigator />
-      </NavigationContainer>
-    </>
+    <AuthProvider>
+      <StatusBar barStyle="dark-content" />
+      <RootNavigator />
+    </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#dc3545',
+    marginBottom: 10,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#343a40',
+    textAlign: 'center',
+  },
+});

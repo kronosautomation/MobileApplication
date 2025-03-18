@@ -12,11 +12,12 @@
     "test": "jest --watchAll",
     "lint": "eslint .",
     "setup": "node setup.js",
-    "clean-install": "rm -rf node_modules && rm -f package-lock.json && npm install --legacy-peer-deps"
+    "clean-install": "rm -rf node_modules && rm -f package-lock.json && npm install --legacy-peer-deps",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expo/vector-icons": "^13.0.0",
-    "@react-native-async-storage/async-storage": "^2.0.0",
+    "@react-native-async-storage/async-storage": "~1.18.2",
     "@react-native-community/slider": "^4.5.0",
     "@react-navigation/bottom-tabs": "^6.5.11",
     "@react-navigation/native": "^6.1.9",
@@ -26,13 +27,19 @@
     "expo": "^50.0.5",
     "expo-asset": "^9.0.2",
     "expo-av": "^13.10.5",
+    "expo-background-fetch": "^13.0.5",
     "expo-constants": "^15.4.5",
+    "expo-crypto": "^14.0.2",
     "expo-dev-client": "^2.4.12",
+    "expo-device": "^7.0.2",
+    "expo-file-system": "^18.0.11",
     "expo-font": "^11.10.2",
     "expo-linking": "^6.2.2",
     "expo-localization": "^14.6.0",
+    "expo-network": "^7.0.5",
     "expo-splash-screen": "^0.26.4",
     "expo-status-bar": "^1.11.1",
+    "expo-task-manager": "^12.0.5",
     "expo-updates": "^0.24.9",
     "i18n-js": "^4.3.2",
     "jwt-decode": "^4.0.0",
@@ -58,6 +65,7 @@
   "devDependencies": {
     "@babel/core": "^7.23.7",
     "@babel/runtime": "^7.23.8",
+    "@types/jest": "^29.5.14",
     "@types/react": "~18.2.48",
     "@types/react-native": "^0.73.0",
     "@typescript-eslint/eslint-plugin": "^6.19.1",
@@ -80,5 +88,34 @@
   "resolutions": {
     "react": "18.2.0",
     "react-test-renderer": "18.2.0"
+  },
+  "mindfulMastery": {
+    "updates": [
+      {
+        "date": "2025-03-17T14:04:22.734Z",
+        "description": "Added expo-network for better connectivity monitoring",
+        "version": "1.0.1"
+      },
+      {
+        "date": "2025-03-17T14:08:32.860Z",
+        "description": "Added expo-network for better connectivity monitoring",
+        "version": "1.0.1"
+      },
+      {
+        "date": "2025-03-17T15:00:00.000Z",
+        "description": "Fixed SQLite version inconsistency and migrated to TypeScript",
+        "version": "1.0.2"
+      },
+      {
+        "date": "2025-03-17T16:00:00.000Z",
+        "description": "Removed SQLite implementation in favor of AsyncStorage",
+        "version": "1.0.3"
+      },
+      {
+        "date": "2025-03-18T00:00:00.000Z",
+        "description": "Fixed AsyncStorage version and simplified app initialization",
+        "version": "1.0.4"
+      }
+    ]
   }
 }

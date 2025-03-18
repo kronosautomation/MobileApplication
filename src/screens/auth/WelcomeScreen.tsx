@@ -1,228 +1,196 @@
 import React from 'react';
 import {
   View,
+  Text,
   StyleSheet,
-  ImageBackground,
-  Image,
-  useWindowDimensions,
   TouchableOpacity,
+  SafeAreaView,
+  ImageBackground,
+  Dimensions,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AuthStackParamList } from '../../types';
-import { useTheme } from '../../context/ThemeContext';
-import { Text, Button } from '../../components/ui';
-import { LinearGradient } from 'expo-linear-gradient';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AuthStackParamList } from '../../navigation/stacks/AuthStack';
+import { Ionicons } from '@expo/vector-icons';
 
-type WelcomeScreenNavigationProp = NativeStackNavigationProp<
-  AuthStackParamList,
-  'Welcome'
->;
+type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
-const WelcomeScreen: React.FC = () => {
-  const navigation = useNavigation<WelcomeScreenNavigationProp>();
-  const { currentTheme } = useTheme();
-  const { colors, spacing } = currentTheme;
-  const { width, height } = useWindowDimensions();
-
-  // Navigate to login screen
-  const handleLoginPress = () => {
+const WelcomeScreen = ({ navigation }: Props) => {
+  const handleLogin = () => {
     navigation.navigate('Login');
   };
 
-  // Navigate to register screen
-  const handleRegisterPress = () => {
+  const handleRegister = () => {
     navigation.navigate('Register');
   };
 
+  // In a real app, you would check if the user has seen this screen before
+  const handleContinueAsGuest = () => {
+    // This function would be passed from the parent to update auth state
+    // For now, we'll just log it
+    console.log('Continuing as guest');
+    
+    // This would typically be handled by the navigation container
+    // based on auth state, but we'll navigate directly for demo purposes
+    if (onGuestLogin) {
+      onGuestLogin();
+    }
+  };
+  
+  // This will be passed from the parent component
+  const onGuestLogin = () => {
+    // In the real implementation, this would update the auth context
+    // For now, we'll just navigate to what would be the main app
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }], // Just for demo, this would go to the app in real implementation
+    });
+  };
+
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      
-      <ImageBackground
-        source={require('../../../assets/images/welcome-bg.jpg')}
-        style={styles.backgroundImage}
-        defaultSource={require('../../../assets/images/welcome-bg.jpg')}
-      >
-        <LinearGradient
-          colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
-          style={styles.gradient}
-        >
-          <SafeAreaView style={styles.safeArea}>
-            {/* Logo and App Name */}
+    <ImageBackground 
+      source={{ uri: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1350&q=80' }}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.overlay}>
+          <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Image
-                source={require('../../../assets/images/logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-              <Text variant="h1" color="light" style={styles.appName}>
-                Mindful Mastery
-              </Text>
-              <Text variant="body" color="light" style={styles.tagline}>
-                Master your performance anxiety with mindfulness
+              <Ionicons name="leaf" size={40} color="#FFF" />
+              <Text style={styles.logoText}>MindfulMastery</Text>
+            </View>
+            <Text style={styles.tagline}>Your journey to mindfulness begins here</Text>
+          </View>
+
+          <View style={styles.contentContainer}>
+            <View style={styles.welcomeTextContainer}>
+              <Text style={styles.welcomeTitle}>Welcome</Text>
+              <Text style={styles.welcomeMessage}>
+                Discover guided meditations, track your progress, and cultivate mindfulness in your daily life.
               </Text>
             </View>
-            
-            {/* Features Highlights */}
-            <View style={styles.featuresContainer}>
-              <View style={styles.featureItem}>
-                <View style={[styles.featureIcon, { backgroundColor: colors.primary.main }]}>
-                  <Text variant="h3" color="light">🧘</Text>
-                </View>
-                <View style={styles.featureText}>
-                  <Text variant="h4" color="light">
-                    Guided Meditations
-                  </Text>
-                  <Text variant="body2" color="light">
-                    Specialized to help with performance anxiety
-                  </Text>
-                </View>
-              </View>
-              
-              <View style={styles.featureItem}>
-                <View style={[styles.featureIcon, { backgroundColor: colors.primary.main }]}>
-                  <Text variant="h3" color="light">📝</Text>
-                </View>
-                <View style={styles.featureText}>
-                  <Text variant="h4" color="light">
-                    Anxiety Journal
-                  </Text>
-                  <Text variant="body2" color="light">
-                    Track your progress and identify triggers
-                  </Text>
-                </View>
-              </View>
-              
-              <View style={styles.featureItem}>
-                <View style={[styles.featureIcon, { backgroundColor: colors.primary.main }]}>
-                  <Text variant="h3" color="light">🏆</Text>
-                </View>
-                <View style={styles.featureText}>
-                  <Text variant="h4" color="light">
-                    Achievements
-                  </Text>
-                  <Text variant="body2" color="light">
-                    Stay motivated with rewards and milestones
-                  </Text>
-                </View>
-              </View>
-            </View>
-            
-            {/* Authentication Buttons */}
-            <View style={styles.authButtonsContainer}>
-              <Button
-                title="Sign In"
-                variant="primary"
-                size="large"
-                fullWidth
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.getStartedButton}
+                onPress={handleRegister}
+              >
+                <Text style={styles.getStartedButtonText}>Get Started</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={styles.loginButton}
-                onPress={handleLoginPress}
-              />
-              
-              <Button
-                title="Create Account"
-                variant="outline"
-                size="large"
-                fullWidth
-                style={[styles.registerButton, { borderColor: colors.primary.contrast }]}
-                textStyle={{ color: colors.primary.contrast }}
-                onPress={handleRegisterPress}
-              />
+                onPress={handleLogin}
+              >
+                <Text style={styles.loginButtonText}>I already have an account</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.guestButton}
+                onPress={handleContinueAsGuest}
+              >
+                <Text style={styles.guestButtonText}>Continue as Guest</Text>
+              </TouchableOpacity>
             </View>
-            
-            {/* Terms and Privacy */}
-            <View style={styles.termsContainer}>
-              <Text variant="caption" color="light" style={styles.termsText}>
-                By continuing, you agree to our{' '}
-                <Text variant="caption" color="light" style={styles.termsLink}>
-                  Terms of Service
-                </Text>{' '}
-                and{' '}
-                <Text variant="caption" color="light" style={styles.termsLink}>
-                  Privacy Policy
-                </Text>
-              </Text>
-            </View>
-          </SafeAreaView>
-        </LinearGradient>
-      </ImageBackground>
-    </View>
+          </View>
+        </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
 
+const { width, height } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
+  backgroundImage: {
+    width: width,
+    height: height,
+  },
   container: {
     flex: 1,
   },
-  backgroundImage: {
+  overlay: {
     flex: 1,
-    width: '100%',
-  },
-  gradient: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'space-between',
+    padding: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginTop: 60,
   },
   logoContainer: {
-    alignItems: 'center',
-    marginTop: 40,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 20,
-  },
-  appName: {
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  tagline: {
-    textAlign: 'center',
-    opacity: 0.8,
-  },
-  featuresContainer: {
-    marginVertical: 40,
-  },
-  featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 10,
   },
-  featureIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+  logoText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginLeft: 10,
   },
-  featureText: {
-    flex: 1,
+  tagline: {
+    fontSize: 16,
+    color: '#FFF',
+    opacity: 0.9,
   },
-  authButtonsContainer: {
-    marginBottom: 20,
+  contentContainer: {
+    marginBottom: 60,
   },
-  loginButton: {
-    marginBottom: 16,
-  },
-  registerButton: {
-    backgroundColor: 'transparent',
-  },
-  termsContainer: {
-    alignItems: 'center',
+  welcomeTextContainer: {
     marginBottom: 30,
   },
-  termsText: {
+  welcomeTitle: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 15,
     textAlign: 'center',
-    opacity: 0.7,
   },
-  termsLink: {
+  welcomeMessage: {
+    fontSize: 18,
+    color: '#FFF',
+    textAlign: 'center',
+    lineHeight: 26,
+    opacity: 0.9,
+  },
+  buttonContainer: {
+    width: '100%',
+  },
+  getStartedButton: {
+    backgroundColor: '#4A62FF',
+    borderRadius: 12,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  getStartedButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  loginButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  guestButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guestButtonText: {
+    color: 'white',
+    fontSize: 16,
     textDecorationLine: 'underline',
   },
 });

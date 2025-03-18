@@ -1,40 +1,50 @@
 import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from '../context';
-import AuthNavigator from './AuthNavigator';
-import MainNavigator from './MainNavigator';
-import PremiumContentScreen from '../screens/subscription/PremiumContentScreen';
-import { RootStackParamList } from '../types';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 
-// Create the stack navigator for the app
-const Stack = createNativeStackNavigator<RootStackParamList>();
+// Import stack navigators
+import HomeStack from './stacks/HomeStack';
+import MeditationStack from './stacks/MeditationStack';
+import JournalStack from './stacks/JournalStack';
+import ProfileStack from './stacks/ProfileStack';
 
-const AppNavigator: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+// Create Tab Navigator
+const Tab = createBottomTabNavigator();
 
-  // While checking authentication status, return null or a loading screen
-  if (isLoading) {
-    return null;
-  }
-
+// Tab navigator configuration
+const AppNavigator = () => {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'fade',
-      }}
-    >
-      {isAuthenticated ? (
-        // User is logged in, show main app screens
-        <>
-          <Stack.Screen name="Main" component={MainNavigator} />
-          <Stack.Screen name="PremiumContent" component={PremiumContentScreen} />
-        </>
-      ) : (
-        // User is not logged in, show authentication screens
-        <Stack.Screen name="Auth" component={AuthNavigator} />
-      )}
-    </Stack.Navigator>
+    <NavigationContainer>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName;
+
+            if (route.name === 'Home') {
+              iconName = focused ? 'home' : 'home-outline';
+            } else if (route.name === 'Meditate') {
+              iconName = focused ? 'leaf' : 'leaf-outline';
+            } else if (route.name === 'Journal') {
+              iconName = focused ? 'book' : 'book-outline';
+            } else if (route.name === 'Profile') {
+              iconName = focused ? 'person' : 'person-outline';
+            }
+
+            // You can return any component here
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: '#4A62FF',
+          tabBarInactiveTintColor: 'gray',
+          headerShown: false,
+        })}
+      >
+        <Tab.Screen name="Home" component={HomeStack} />
+        <Tab.Screen name="Meditate" component={MeditationStack} />
+        <Tab.Screen name="Journal" component={JournalStack} />
+        <Tab.Screen name="Profile" component={ProfileStack} />
+      </Tab.Navigator>
+    </NavigationContainer>
   );
 };
 

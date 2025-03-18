@@ -75,6 +75,13 @@ const MeditationCard: React.FC<MeditationCardProps> = ({
       ]}
       onPress={() => onPress(meditation)}
       activeOpacity={0.8}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={`${meditation.title} meditation by ${meditation.narrator}, ${formatDuration(meditation.durationInSeconds)} long, ${getDifficultyLabel(meditation.difficultyLevel)} level${isLocked ? ', Premium content, subscription required' : ''}${meditation.isDownloaded ? ', Downloaded' : ''}`}
+      accessibilityHint="Opens detailed view of this meditation"
+      accessibilityState={{
+        disabled: isLocked
+      }}
     >
       <ImageBackground
         source={{ uri: meditation.imageUrl || placeholderImage }}
@@ -127,7 +134,13 @@ const MeditationCard: React.FC<MeditationCardProps> = ({
               {meditation.tags && meditation.tags.length > 0 && (
                 <View style={styles.tagsContainer}>
                   {meditation.tags.slice(0, 2).map((tag, index) => (
-                    <View key={index} style={styles.tag}>
+                    <View 
+                      key={index} 
+                      style={styles.tag}
+                      accessible={true}
+                      accessibilityLabel={`Tag: ${tag}`}
+                      accessibilityRole="text"
+                    >
                       <Text variant="caption" color="light">
                         {tag}
                       </Text>
@@ -141,14 +154,24 @@ const MeditationCard: React.FC<MeditationCardProps> = ({
         
         {/* Downloaded indicator */}
         {meditation.isDownloaded && (
-          <View style={styles.downloadedBadge}>
+          <View 
+            style={styles.downloadedBadge}
+            accessible={true}
+            accessibilityLabel="Downloaded for offline use"
+            accessibilityRole="image"
+          >
             <Ionicons name="arrow-down-circle" size={20} color={colors.primary.light} />
           </View>
         )}
         
         {/* Lock icon for premium content */}
         {isLocked && (
-          <View style={styles.lockContainer}>
+          <View 
+            style={styles.lockContainer}
+            accessible={true}
+            accessibilityLabel="Premium content, subscription required"
+            accessibilityRole="image"
+          >
             <View style={styles.lockBadge}>
               <Ionicons name="lock-closed" size={18} color={colors.text.light} />
               <Text variant="caption" color="light" style={styles.premiumText}>
