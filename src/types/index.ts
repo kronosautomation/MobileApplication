@@ -1,13 +1,56 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
+// Assuming stack param lists are defined in navigation folders
+// import { HomeStackParamList } from '../navigation/stacks/HomeStack'; 
+// import { MeditationStackParamList } from '../navigation/stacks/MeditationStack'; 
+// import { JournalStackParamList } from '../navigation/stacks/JournalStack'; 
+// import { AchievementsStackParamList } from '../navigation/stacks/AchievementsStack'; 
+// import { ProfileStackParamList } from '../navigation/stacks/ProfileStack'; 
+
 // User and Authentication Types
 export interface User {
   id: string;
   email: string;
   username: string;
-  firstName?: string;
-  lastName?: string;
-  profileImageUrl?: string;
+  firstName: string;
+  lastName: string;
+  name?: string;
+  role: 'user' | 'admin';
   createdAt: string;
-  lastLoginAt: string;
+  updatedAt: string;
+  bio?: string | null;
+  timeZone?: string | null;
+  profileImageUrl?: string | null;
+  isActive: boolean;
+  isVerified: boolean;
+  lastLogin?: string;
+  preferences?: Record<string, any>;
+  meditationStats?: {
+    totalMinutes: number;
+    completedSessions: number;
+    currentStreak: number;
+    longestStreak: number;
+  };
+  journalEntriesCount?: number;
+  achievements?: string[];
+}
+
+export interface UserPreferences {
+  userId: string;
+  meditationRemindersEnabled: boolean;
+  reminderTime?: string;
+  preferredMeditationDuration?: number;
+  preferredBackgroundSound?: string;
+  soundVolume?: number;
+  theme?: string;
+  language?: string;
+  notificationsEnabled: boolean;
+  darkMode?: boolean;
+  soundEffects?: boolean;
+  hapticFeedback?: boolean;
+  sessionEndBell?: boolean;
+  keepScreenAwake?: boolean;
+  syncData?: boolean;
+  shareAnalytics?: boolean;
 }
 
 export interface AuthTokens {
@@ -74,12 +117,14 @@ export interface ThemeType {
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  isLoggedIn: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  isAuthenticated: boolean;
+  login: (email: string, password: string, deviceToken?: string) => Promise<void>;
+  register: (firstName: string, lastName: string, email: string, password: string, deviceToken?: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
+  refreshUserData: () => Promise<User | null>;
+  checkAuthStatus: () => Promise<void>;
 }
 
 // Meditation Types
@@ -93,24 +138,32 @@ export interface GuidedMeditation {
   id: string;
   title: string;
   description: string;
-  narrator: string;
-  durationInSeconds: number;
+  audioUrl: string;
   imageUrl?: string;
-  audioUrl?: string;
-  streamingUrl?: string;
   transcriptUrl?: string;
+  duration: number; // Duration in seconds
   language: string;
+  author?: string;
+  narrator?: string;
   difficultyLevel: DifficultyLevel;
   tags: string[];
   categories: string[];
-  isPublic: boolean;
+  category?: string; // Potentially derived, keep consistent with backend
+  backgroundSound?: BackgroundSoundOptions;
+  audioFileSize?: number;
   isFeatured: boolean;
-  minimumSubscriptionTier: number;
-  createdAt: string;
-  updatedAt: string;
-  downloadProgress?: number;
-  isDownloaded?: boolean;
-  localAudioPath?: string;
+  isPublic: boolean;
+  isPremium: boolean;
+  subscriptionTier: string;
+  minimumSubscriptionTier: string;
+  performanceFocus?: PerformanceFocusArea;
+  situationsFor: string[];
+  techniquesIncluded: string[];
+  createdAt: string; // ISO 8601 date string
+  lastUpdated: string; // ISO 8601 date string
+  viewCount: number;
+  averageRating?: number;
+  stats: MeditationStats;
 }
 
 export interface MeditationSession {
@@ -148,13 +201,34 @@ export interface PerformanceJournal {
   userId: string;
   title: string;
   content: string;
+  
+  // CBT framework fields
+  situation?: string;
+  thoughts?: string;
+  physicalSensations?: string;
+  actions?: string;
+  outcome?: string;
+  reflection?: string;
+  
+  // Ratings
   anxietyLevel: number;
+  confidenceLevel: number;
+  
+  // Focus area
   performanceFocusArea: PerformanceFocusArea;
+  
+  // Event information
   event?: string;
   eventDate?: string;
+  
+  // Lists
   triggers?: string[];
   copingStrategies?: string[];
-  emotions?: string[];
+  emotions: string[];
+  techniquesUsed: string[];
+  
+  // Meta
+  date?: string;  // For when an entry is about a specific date
   isPrivate: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -219,6 +293,52 @@ export enum AchievementType {
   SpecificFocusArea = 5,
 }
 
+// Meditation Stats Types
+export interface MeditationStats {
+  totalSessions: number;
+  completedSessions: number;
+  abandonedSessions: number;
+  totalMinutes: number;
+  averageSessionMinutes: number;
+  totalDaysActive: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastSessionDate?: string;
+  averageAnxietyReduction: number;
+  performanceAnxietySessions: number;
+  averageFocusRating: number;
+  sessionTypeBreakdown: Record<string, number>;
+  completionRate: number;
+  hasSessionToday: boolean;
+  meditationDates?: string[]; // For calendar view
+  comparisonStats?: ComparisonStats; // For period comparisons
+}
+
+export interface ComparisonStats {
+  currentPeriod: PeriodStats;
+  previousPeriod: PeriodStats;
+  sessionCountChangePercent: number;
+  timeChangePercent: number;
+  streakChangePercent: number;
+}
+
+export interface PeriodStats {
+  periodName: string;
+  startDate: string;
+  endDate: string;
+  sessionCount: number;
+  completedSessions: number;
+  totalMinutes: number;
+  streak: number;
+}
+
+export interface DailyMeditationData {
+  date: string;
+  sessionCount: number;
+  totalMinutes: number;
+  averageAnxietyReduction?: number;
+}
+
 // Network Status Types
 export interface NetworkStatus {
   isConnected: boolean;
@@ -230,7 +350,6 @@ export interface NetworkStatus {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
-  PremiumContent: undefined;
 };
 
 export type AuthStackParamList = {
@@ -240,40 +359,61 @@ export type AuthStackParamList = {
   ForgotPassword: undefined;
 };
 
+// We're now importing the stack types from their respective files
+// Update MainTabParamList to use those imports
 export type MainTabParamList = {
-  Home: undefined;
-  Meditations: undefined;
-  Journal: undefined;
-  Achievements: undefined;
-  Profile: undefined;
+  Home: NavigatorScreenParams<HomeStackParamList>;
+  Meditations: NavigatorScreenParams<MeditationStackParamList>;
+  Journal: NavigatorScreenParams<JournalStackParamList>;
+  Achievements: NavigatorScreenParams<AchievementsStackParamList>;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 export type HomeStackParamList = {
   HomeMain: undefined;
+  Stats: undefined;
+  Achievements: undefined;
 };
 
+// MeditationStackParamList is now defined in src/navigation/stacks/MeditationStack.ts
+// Uncomment and update if needed
+/* 
 export type MeditationStackParamList = {
-  MeditationList: undefined;
-  MeditationDetail: { meditationId: string };
-  MeditationPlayer: { meditation: GuidedMeditation };
-  MeditationComplete: { sessionId: string };
+  MeditationMain: undefined;
+  MeditationList: { categoryId: string; title: string; };
+  MeditationDetail: { id: string; title: string };
+  MeditationPlayer: { id: string; title: string; duration: number };
+  MeditationCompleted: { sessionTime: number };
+  Subscription: undefined;
 };
+*/
 
+// Import these types instead
+import { MeditationStackParamList } from '../navigation/stacks/MeditationStack';
+
+// JournalStackParamList is now defined in src/navigation/stacks/JournalStack.ts
+// Uncomment and update if needed
+/*
 export type JournalStackParamList = {
   JournalList: undefined;
   JournalEntry: { journalId?: string };
   JournalDetail: { journalId: string };
+  NewJournalEntry: undefined;
 };
+*/
+
+// Import these types instead
+import { JournalStackParamList } from '../navigation/stacks/JournalStack';
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   EditProfile: undefined;
-  Subscription: undefined;
   Settings: undefined;
   Statistics: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   About: undefined;
+  Subscription: undefined;
 };
 
 export type AchievementsStackParamList = {
@@ -281,7 +421,10 @@ export type AchievementsStackParamList = {
   AchievementDetail: { achievementId: string };
 };
 
-// Global declarations
-declare global {
-  var HermesInternal: null | {};
+// --- Placeholder for missing type --- 
+export interface BackgroundSoundOptions {
+  id: string;
+  name: string;
+  url: string;
 }
+// --- End Placeholder --- 

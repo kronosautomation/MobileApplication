@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import { useAuth } from '../../context';
 import { ProfileStackParamList } from '../../types';
 import { Text } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import userProfileService, { UserStats } from '../../api/userProfileService';
 
 type ProfileNavigationProp = NativeStackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
@@ -16,6 +17,32 @@ const ProfileMainScreen: React.FC = () => {
   const { currentTheme, isDark } = useTheme();
   const { colors } = currentTheme;
   const { user, logout } = useAuth();
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  
+  useEffect(() => {
+    loadUserStats();
+  }, []);
+  
+  const loadUserStats = async () => {
+    try {
+      setIsLoadingStats(true);
+      const stats = await userProfileService.getUserStats();
+      setUserStats(stats);
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+      // Set default stats if loading fails
+      setUserStats({
+        daysActive: user?.createdAt ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+        totalMeditations: 0,
+        totalAchievements: 0,
+        currentStreak: 0,
+        completionRate: 0
+      });
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
   
   const handleLogout = async () => {
     try {
@@ -61,6 +88,11 @@ const ProfileMainScreen: React.FC = () => {
               <Text variant="body2" color="secondary" style={styles.emailText}>
                 {user?.email || 'email@example.com'}
               </Text>
+              {user?.bio && (
+                <Text variant="body2" style={styles.bioText} numberOfLines={2}>
+                  {user.bio}
+                </Text>
+              )}
             </View>
             
             <TouchableOpacity 
@@ -76,7 +108,11 @@ const ProfileMainScreen: React.FC = () => {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text variant="h4" color="primary">
-                {user?.createdAt ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0}
+                {isLoadingStats ? (
+                  <ActivityIndicator size="small" color="#4A62FF" />
+                ) : (
+                  userStats?.daysActive || 0
+                )}
               </Text>
               <Text variant="body2" color="secondary">
                 Days Active
@@ -87,7 +123,11 @@ const ProfileMainScreen: React.FC = () => {
             
             <View style={styles.statItem}>
               <Text variant="h4" color="primary">
-                14
+                {isLoadingStats ? (
+                  <ActivityIndicator size="small" color="#4A62FF" />
+                ) : (
+                  userStats?.totalMeditations || 0
+                )}
               </Text>
               <Text variant="body2" color="secondary">
                 Meditations
@@ -98,7 +138,11 @@ const ProfileMainScreen: React.FC = () => {
             
             <View style={styles.statItem}>
               <Text variant="h4" color="primary">
-                3
+                {isLoadingStats ? (
+                  <ActivityIndicator size="small" color="#4A62FF" />
+                ) : (
+                  userStats?.totalAchievements || 0
+                )}
               </Text>
               <Text variant="body2" color="secondary">
                 Achievements
@@ -113,7 +157,7 @@ const ProfileMainScreen: React.FC = () => {
           onPress={() => navigateToScreen('Subscription')}
         >
           <View style={styles.subscriptionContent}>
-            <Ionicons name="diamond" size={24} color={colors.primary.contrastText} />
+            <Ionicons name="star" size={24} color={colors.primary.contrastText} />
             <View style={styles.subscriptionInfo}>
               <Text variant="subtitle" color="light">
                 Premium Subscription
@@ -280,6 +324,10 @@ const styles = StyleSheet.create({
   },
   emailText: {
     marginTop: 4,
+  },
+  bioText: {
+    marginTop: 4,
+    opacity: 0.8,
   },
   editButton: {
     width: 36,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ProfileStackParamList, MeditationSession, PerformanceJournal } from '../../types';
+import { MeditationSession, PerformanceJournal } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,18 @@ import { BarChart, LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { useAuth } from '../../context';
 import { api } from '../../api';
+
+// Define a local type that includes the Statistics screen
+type ProfileStackParamList = {
+  ProfileMain: undefined;
+  EditProfile: undefined;
+  Settings: undefined;
+  Statistics: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
+  About: undefined;
+  Subscription: undefined;
+};
 
 type NavigationProps = NativeStackNavigationProp<ProfileStackParamList, 'Statistics'>;
 
@@ -30,9 +42,9 @@ const StatisticsScreen: React.FC = () => {
 
   // Chart configuration
   const chartConfig = {
-    backgroundColor: isDark ? colors.background.dark : colors.background.light,
-    backgroundGradientFrom: isDark ? colors.background.dark : colors.background.light,
-    backgroundGradientTo: isDark ? colors.background.dark : colors.background.light,
+    backgroundColor: isDark ? colors.background.dark : colors.background.paper,
+    backgroundGradientFrom: isDark ? colors.background.dark : colors.background.paper,
+    backgroundGradientTo: isDark ? colors.background.dark : colors.background.paper,
     decimalPlaces: 0,
     color: (opacity = 1) => `rgba(${isDark ? '255, 255, 255' : '0, 0, 0'}, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(${isDark ? '255, 255, 255' : '0, 0, 0'}, ${opacity})`,
@@ -52,37 +64,73 @@ const StatisticsScreen: React.FC = () => {
       
       setIsLoading(true);
       try {
-        // In a real app, these would be API calls to fetch user data
-        // For demo purposes, we'll simulate the data
+        console.log('Fetching statistics data for user:', user.id);
         
-        // Simulate API call for meditation sessions
+        // Fetch meditation sessions
         const sessionsResponse = await api.getMeditationSessions(user.id);
+        console.log(`Retrieved ${sessionsResponse.data.length} meditation sessions`);
         setMeditationSessions(sessionsResponse.data);
         
-        // Simulate API call for journal entries
+        // Fetch journal entries
         const journalsResponse = await api.getJournalEntries(user.id);
+        console.log(`Retrieved ${journalsResponse.data.length} journal entries`);
         setJournalEntries(journalsResponse.data);
         
         // Calculate statistics
         if (sessionsResponse.data.length > 0) {
-          // Total meditation time
+          // Total meditation time - ensure we're handling the data correctly
           const totalTime = sessionsResponse.data.reduce(
-            (sum, session) => sum + session.durationInSeconds, 0
+            (sum, session) => {
+              // Parse duration if it's not a number
+              const durationSeconds = typeof session.durationInSeconds === 'number' 
+                ? session.durationInSeconds 
+                : parseInt(String(session.durationInSeconds || '0'), 10);
+              return sum + durationSeconds;
+            }, 0
           );
+          
+          console.log(`Total meditation time calculated: ${totalTime} seconds`);
           setTotalMeditationTime(totalTime);
           setTotalSessions(sessionsResponse.data.length);
           
           // Calculate average anxiety reduction (for sessions with before/after values)
           const sessionsWithAnxietyData = sessionsResponse.data.filter(
-            session => session.anxietyBefore !== undefined && session.anxietyAfter !== undefined
+            session => {
+              // Ensure we're checking for undefined or null values
+              const hasBefore = session.anxietyBefore !== undefined && session.anxietyBefore !== null;
+              const hasAfter = session.anxietyAfter !== undefined && session.anxietyAfter !== null;
+              return hasBefore && hasAfter;
+            }
           );
+          
+          console.log(`Sessions with anxiety data: ${sessionsWithAnxietyData.length}`);
           
           if (sessionsWithAnxietyData.length > 0) {
             const totalReduction = sessionsWithAnxietyData.reduce(
-              (sum, session) => sum + ((session.anxietyBefore || 0) - (session.anxietyAfter || 0)), 0
+              (sum, session) => {
+                // Parse anxiety values if they're not numbers
+                const before = typeof session.anxietyBefore === 'number' 
+                  ? session.anxietyBefore 
+                  : parseInt(String(session.anxietyBefore || '0'), 10);
+                  
+                const after = typeof session.anxietyAfter === 'number' 
+                  ? session.anxietyAfter 
+                  : parseInt(String(session.anxietyAfter || '0'), 10);
+                  
+                return sum + (before - after);
+              }, 0
             );
-            setAverageAnxietyReduction(totalReduction / sessionsWithAnxietyData.length);
+            
+            const avgReduction = totalReduction / sessionsWithAnxietyData.length;
+            console.log(`Average anxiety reduction calculated: ${avgReduction}`);
+            setAverageAnxietyReduction(avgReduction);
           }
+        } else {
+          // Set default values if no sessions found
+          console.log('No meditation sessions found, setting default values');
+          setTotalMeditationTime(0);
+          setTotalSessions(0);
+          setAverageAnxietyReduction(0);
         }
       } catch (error) {
         console.error('Error fetching statistics:', error);
@@ -178,7 +226,7 @@ const StatisticsScreen: React.FC = () => {
       
       <ScrollView style={styles.scrollView}>
         {/* Summary Section */}
-        <View style={[styles.section, { backgroundColor: isDark ? colors.background.paper : colors.background.light }]}>
+        <View style={[styles.section, { backgroundColor: isDark ? colors.background.paper : colors.background.default }]}>
           <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
             Meditation Summary
           </Text>
@@ -214,7 +262,7 @@ const StatisticsScreen: React.FC = () => {
         </View>
         
         {/* Meditation Frequency Chart */}
-        <View style={[styles.section, { backgroundColor: isDark ? colors.background.paper : colors.background.light }]}>
+        <View style={[styles.section, { backgroundColor: isDark ? colors.background.paper : colors.background.default }]}>
           <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
             Meditation Frequency
           </Text>
@@ -230,11 +278,13 @@ const StatisticsScreen: React.FC = () => {
             style={styles.chart}
             verticalLabelRotation={0}
             fromZero
+            yAxisLabel=""
+            yAxisSuffix=""
           />
         </View>
         
         {/* Anxiety Level Chart */}
-        <View style={[styles.section, { backgroundColor: isDark ? colors.background.paper : colors.background.light }]}>
+        <View style={[styles.section, { backgroundColor: isDark ? colors.background.paper : colors.background.default }]}>
           <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
             Anxiety Level Trend
           </Text>
@@ -256,7 +306,7 @@ const StatisticsScreen: React.FC = () => {
         </View>
         
         {/* Journal Entry Stats */}
-        <View style={[styles.section, { backgroundColor: isDark ? colors.background.paper : colors.background.light }]}>
+        <View style={[styles.section, { backgroundColor: isDark ? colors.background.paper : colors.background.default }]}>
           <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
             Journal Activity
           </Text>

@@ -1,5 +1,25 @@
 import apiClient from './apiClient';
 import { GuidedMeditation, DifficultyLevel, MeditationSession } from '../types';
+import userProfileService from './userProfileService';
+
+// Interface for meditation statistics
+export interface MeditationStats {
+  totalMeditations: number;
+  totalMinutes: number;
+  completedSessions: number;
+  abandonedSessions: number;
+  averageSessionLength: number;
+  currentStreak: number;
+  longestStreak: number;
+  totalCalendarDays: number;
+  totalCompletionDays: number;
+  lastSessionDate?: string;
+  averageAnxietyReduction: number;
+  completionRate: number;
+  calendarData?: Array<{ date: string; minutes: number; completed: boolean }>;
+  weeklyComparison?: { thisWeek: number; lastWeek: number; percentChange: number };
+  monthlyComparison?: { thisMonth: number; lastMonth: number; percentChange: number };
+}
 
 class MeditationService {
   // Get a list of guided meditations with optional filtering
@@ -23,7 +43,7 @@ class MeditationService {
         items: GuidedMeditation[];
         totalCount: number;
         totalPages: number;
-      }>(`/meditation${queryParams}`);
+      }>(`/guided-meditation${queryParams}`);
 
       return {
         meditations: response.items,
@@ -105,6 +125,22 @@ class MeditationService {
         notes,
         moodAfter,
       });
+      
+      // Update local user stats
+      try {
+        // Get session duration in minutes
+        const durationMinutes = response.durationInSeconds ? Math.round(response.durationInSeconds / 60) : 5;
+        
+        // Update stats (consider the session completed if it has a status of "Completed")
+        await userProfileService.updateStatsAfterMeditation(
+          durationMinutes, 
+          response.status === "Completed"
+        );
+      } catch (statsError) {
+        console.error('Error updating local user stats:', statsError);
+        // Don't fail the operation if stats update fails
+      }
+      
       return response;
     } catch (error) {
       throw this.handleError(error, 'Failed to complete meditation session');
@@ -136,6 +172,44 @@ class MeditationService {
       return response;
     } catch (error) {
       throw this.handleError(error, 'Failed to fetch meditation history');
+    }
+  }
+
+  // Get user's meditation statistics with enhanced data
+  async getUserMeditationStats(
+    includeCalendar: boolean = false,
+    includeComparisons: boolean = false,
+    calendarStartDate?: Date,
+    calendarEndDate?: Date
+  ): Promise<MeditationStats> {
+    try {
+      let url = '/meditation/stats';
+      const params = [];
+      
+      if (includeCalendar) {
+        params.push(`includeCalendar=true`);
+        
+        if (calendarStartDate) {
+          params.push(`calendarStartDate=${calendarStartDate.toISOString()}`);
+        }
+        
+        if (calendarEndDate) {
+          params.push(`calendarEndDate=${calendarEndDate.toISOString()}`);
+        }
+      }
+      
+      if (includeComparisons) {
+        params.push(`includeComparisons=true`);
+      }
+      
+      if (params.length > 0) {
+        url += `?${params.join('&')}`;
+      }
+      
+      const response = await apiClient.get<MeditationStats>(url);
+      return response;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to fetch meditation statistics');
     }
   }
 

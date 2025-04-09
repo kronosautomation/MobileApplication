@@ -5,6 +5,7 @@ import fileService from './fileService';
 import subscriptionValidator from './subscriptionValidator';
 import { defineTask } from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
+import * as TaskManager from 'expo-task-manager';
 
 // Background sync task name
 const BACKGROUND_SYNC_TASK = 'BACKGROUND_SYNC_TASK';
@@ -52,13 +53,18 @@ const registerBackgroundSyncTask = async (): Promise<void> => {
   if (Platform.OS === 'web') return;
   
   try {
-    // Check if the task is already defined
-    const isTaskDefined = await isTaskRegisteredAsync(BACKGROUND_SYNC_TASK);
+    // Check if the task is already defined using TaskManager
+    const isTaskDefined = await TaskManager.isTaskDefined(BACKGROUND_SYNC_TASK);
     
     if (!isTaskDefined) {
       // Define the background task
       defineTask(BACKGROUND_SYNC_TASK, async () => {
         try {
+          // Added null check for safety
+          if (!syncService) {
+             console.error('BackgroundSyncTask: syncService is not available!');
+             return BackgroundFetch.BackgroundFetchResult.Failed;
+          }
           const isSyncNeeded = await syncService.isSyncNeeded();
           
           if (isSyncNeeded) {
@@ -94,19 +100,25 @@ const registerBackgroundSyncTask = async (): Promise<void> => {
   }
 };
 
+// Commenting out unused function causing linter error for now
 /**
- * Check if a task is registered
+ * Check if a task is registered 
  * @param taskName Task name
  * @returns Whether the task is registered
  */
+/*
 const isTaskRegisteredAsync = async (taskName: string): Promise<boolean> => {
   try {
-    const tasks = await BackgroundFetch.getRegisteredTasksAsync();
-    return tasks.some(task => task.taskName === taskName);
+    // The method getRegisteredTasksAsync seems problematic / might not exist as expected
+    // const tasks = await BackgroundFetch.getRegisteredTasksAsync(); 
+    // return tasks.some((task: any) => task.taskName === taskName); // Added type any for task
+    console.warn('isTaskRegisteredAsync check is currently disabled.');
+    return false; // Assume not registered for now to avoid error
   } catch (error) {
     console.error('Error checking registered tasks:', error);
     return false;
   }
 };
+*/
 
 export default initializeOfflineServices;

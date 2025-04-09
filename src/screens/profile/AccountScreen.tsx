@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,33 +8,92 @@ import {
   TextInput, 
   TouchableOpacity,
   Image,
-  Alert
+  Alert,
+  ActivityIndicator,
+  Linking
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/stacks/ProfileStack';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../auth';
+import userProfileService from '../../api/userProfileService';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Account'>;
 
 const AccountScreen = ({ navigation }: Props) => {
-  // Mock initial user data (in a real app, this would come from context)
+  const { user, isLoading: authLoading, refreshUserData } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // User data state
   const [userData, setUserData] = useState({
-    name: 'Sarah Johnson',
-    email: 'sarah.j@example.com',
-    phone: '(555) 123-4567',
-    profilePicture: null, // In a real app, this would be a uri
+    name: '',
+    email: '',
+    phone: '',
+    profilePicture: null,
   });
   
   // Input field values
-  const [name, setName] = useState(userData.name);
-  const [email, setEmail] = useState(userData.email);
-  const [phone, setPhone] = useState(userData.phone);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   
   // Track if form has been modified
   const isModified = name !== userData.name || email !== userData.email || phone !== userData.phone;
   
+  // Load user data when component mounts and when user changes
+  useEffect(() => {
+    const loadUserData = async () => {
+      console.log('AccountScreen - Loading user data');
+      
+      if (user) {
+        // Format the name from firstName and lastName
+        const fullName = [user.firstName || '', user.lastName || ''].filter(Boolean).join(' ');
+        
+        // Update user data state
+        setUserData({
+          name: fullName,
+          email: user.email || '',
+          // Phone isn't in the User type, so keep whatever value it had
+          phone: userData.phone,
+          profilePicture: user.profileImageUrl || null,
+        });
+        
+        // Update input fields
+        setName(fullName);
+        setEmail(user.email || '');
+      } else {
+        // Try to fetch user profile directly
+        try {
+          const profileData = await userProfileService.getUserProfile();
+          if (profileData) {
+            // Format the name from firstName and lastName
+            const fullName = [profileData.firstName || '', profileData.lastName || ''].filter(Boolean).join(' ');
+            
+            // Update user data state
+            setUserData({
+              name: fullName,
+              email: profileData.email || '',
+              phone: userData.phone,
+              profilePicture: profileData.profileImageUrl || null,
+            });
+            
+            // Update input fields
+            setName(fullName);
+            setEmail(profileData.email || '');
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        }
+      }
+    };
+    
+    loadUserData();
+  }, [user]);
+  
   // Handle save profile
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     // Basic validation
     if (!name.trim()) {
       Alert.alert('Error', 'Name cannot be empty');
@@ -46,25 +105,144 @@ const AccountScreen = ({ navigation }: Props) => {
       return;
     }
     
-    // In a real app, you would send this data to your API/backend
-    setUserData({
-      ...userData,
-      name,
-      email,
-      phone,
-    });
-    
-    // Show success message
-    Alert.alert('Success', 'Profile updated successfully', [
-      { text: 'OK', onPress: () => navigation.goBack() }
-    ]);
+    try {
+      setIsLoading(true);
+      
+      // Split the name into first and last name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Prepare update data
+      const updatedProfile = {
+        firstName,
+        lastName,
+        email,
+        // Other fields are kept unchanged
+      };
+      
+      console.log('Updating profile with:', updatedProfile);
+      
+      // Call service to update profile
+      await userProfileService.updateProfile(updatedProfile);
+      
+      // Refresh user data
+      await refreshUserData();
+      
+      // Update local state
+      setUserData({
+        ...userData,
+        name,
+        email,
+        phone,
+      });
+      
+      // Show success message
+      Alert.alert('Success', 'Profile updated successfully', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  // Handle change profile picture
-  const handleChangeProfilePicture = () => {
-    // In a real app, this would open the camera or photo library
-    Alert.alert('Change Profile Picture', 'This feature is not implemented in this demo.');
+  // Handle change profile picture with improved error handling
+  const handleChangeProfilePicture = async () => {
+    try {
+      // Request permission to access the photo library
+      const libraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (libraryPermission.status !== 'granted') {
+        Alert.alert(
+          'Permission Required', 
+          'Please allow access to your photo library to change your profile picture.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Settings', 
+              onPress: () => {
+                // On iOS this will open the settings app
+                // On Android, you might need to implement a custom solution
+                Linking.openSettings().catch(() => {
+                  Alert.alert('Unable to open settings', 'Please open settings manually to enable permissions.');
+                });
+              } 
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        exif: false, // Avoid loading unnecessary EXIF data
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Update UI with selected image temporarily
+        const uri = result.assets[0].uri;
+        
+        // Validate image size before uploading (optional)
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(uri);
+          if (fileInfo.exists && fileInfo.size > 5 * 1024 * 1024) { // 5MB limit
+            Alert.alert('Image too large', 'Please select an image smaller than 5MB.');
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking file size:', error);
+          // Continue even if we can't check file size
+        }
+        
+        // Set loading state
+        setIsLoading(true);
+        
+        try {
+          // Upload image to server
+          const uploadedUrl = await userProfileService.uploadProfileImage(uri);
+          
+          // Update user data with new profile image URL
+          setUserData({
+            ...userData,
+            profilePicture: uploadedUrl,
+          });
+          
+          // Refresh user data to update the auth context
+          await refreshUserData();
+          
+          Alert.alert('Success', 'Profile image updated successfully');
+        } catch (uploadError) {
+          console.error('Error uploading profile image:', uploadError);
+          Alert.alert(
+            'Upload Failed', 
+            'Failed to upload profile image. Please check your internet connection and try again.'
+          );
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error selecting image:', error);
+      Alert.alert('Error', 'An unexpected error occurred while selecting an image.');
+    }
   };
+  
+  // Show loading spinner when data is being fetched/updated
+  if (authLoading && !user) {
+    return (
+      <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#4A62FF" />
+        <Text style={styles.loadingText}>Loading your profile...</Text>
+      </SafeAreaView>
+    );
+  }
   
   return (
     <SafeAreaView style={styles.container}>
@@ -131,15 +309,22 @@ const AccountScreen = ({ navigation }: Props) => {
         </View>
         
         <View style={styles.actionsSection}>
-          <TouchableOpacity 
-            style={[styles.saveButton, !isModified && styles.saveButtonDisabled]}
-            onPress={handleSaveProfile}
-            disabled={!isModified}
-          >
-            <Text style={[styles.saveButtonText, !isModified && styles.saveButtonTextDisabled]}>
-              Save Changes
-            </Text>
-          </TouchableOpacity>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#4A62FF" />
+              <Text style={styles.loadingText}>Saving changes...</Text>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.saveButton, !isModified && styles.saveButtonDisabled]}
+              onPress={handleSaveProfile}
+              disabled={!isModified || isLoading}
+            >
+              <Text style={[styles.saveButtonText, !isModified && styles.saveButtonTextDisabled]}>
+                Save Changes
+              </Text>
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity 
             style={styles.passwordButton}
@@ -178,6 +363,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
   scrollContent: {
     padding: 20,

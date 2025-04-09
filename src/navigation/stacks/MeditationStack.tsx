@@ -7,13 +7,8 @@ import MeditationDetailScreen from '../../screens/meditation/MeditationDetailScr
 import MeditationPlayerScreen from '../../screens/meditation/MeditationPlayerScreen';
 import MeditationCompletedScreen from '../../screens/meditation/MeditationCompletedScreen';
 
-// Define types for meditation stack navigation
-export type MeditationStackParamList = {
-  MeditationMain: undefined;
-  MeditationDetail: { id: string; title: string };
-  MeditationPlayer: { id: string; title: string; duration: number };
-  MeditationCompleted: { sessionTime: number };
-};
+// Import types from the .ts file
+import { MeditationStackParamList } from './MeditationStack.ts';
 
 const Stack = createNativeStackNavigator<MeditationStackParamList>();
 

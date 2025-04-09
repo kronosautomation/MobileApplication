@@ -29,7 +29,7 @@ const PremiumContentScreen: React.FC = () => {
       {/* Content */}
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.premiumBadge, { backgroundColor: colors.primary.main }]}>
-          <Ionicons name="diamond" size={24} color={colors.primary.contrast} />
+          <Ionicons name="star" size={24} color={colors.primary.contrast} />
           <Text style={[styles.premiumText, { color: colors.primary.contrast }]}>
             Premium Feature
           </Text>

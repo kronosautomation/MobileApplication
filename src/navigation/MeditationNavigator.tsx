@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MeditationStackParamList } from '../types';
+import { MeditationStackParamList } from './stacks/MeditationStack';
 import MeditationListScreen from '../screens/meditation/MeditationListScreen';
 import MeditationDetailScreen from '../screens/meditation/MeditationDetailScreen';
 import MeditationPlayerScreen from '../screens/meditation/MeditationPlayerScreen';

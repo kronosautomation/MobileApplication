@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
-import { JournalStackParamList, PerformanceJournal, PerformanceFocusArea } from '../../types';
+import { PerformanceJournal, PerformanceFocusArea } from '../../types';
 import { Text, Button } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import { journalService } from '../../api/journalService';
+
+type JournalStackParamList = {
+  JournalDetail: {
+    journalId: string;
+    refresh?: boolean;
+  };
+};
 
 type JournalDetailScreenNavigationProp = NativeStackNavigationProp<
   JournalStackParamList,
@@ -21,28 +29,42 @@ const JournalDetailScreen: React.FC = () => {
   const { currentTheme } = useTheme();
   const { colors, spacing } = currentTheme;
   
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [journal, setJournal] = useState<PerformanceJournal | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
-  // Get journal ID from params
-  const { journalId } = route.params;
+  // Get journal ID and refresh trigger from params
+  const { journalId, refresh } = route.params;
   
-  // In a real app, we would fetch the journal entry
-  // For now, we'll use mock data
-  const mockJournal: PerformanceJournal = {
-    id: journalId,
-    userId: 'user123',
-    title: 'My Performance Anxiety',
-    content: 'I experienced anxiety before my presentation today. I felt my heart racing and my palms getting sweaty. I tried using some deep breathing techniques that helped a bit, but I still felt very nervous throughout the presentation. I noticed that my anxiety was highest right before I was introduced, and it gradually decreased as I got further into my presentation. Next time, I think I\'ll try to practice more with a friend to build confidence.',
-    anxietyLevel: 7,
-    performanceFocusArea: PerformanceFocusArea.WorkPresentation,
-    event: 'Quarterly Sales Presentation',
-    eventDate: new Date().toISOString(),
-    triggers: ['Large audience', 'Being evaluated', 'Past failure'],
-    copingStrategies: ['Deep breathing', 'Visualization'],
-    emotions: ['Nervous', 'Anxious', 'Worried'],
-    isPrivate: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+  // Fetch journal data when component mounts or when refresh is triggered
+  useEffect(() => {
+    fetchJournalData();
+    // Add refresh to the dependency array to trigger reload when coming back from edit
+  }, [journalId, refresh]);
+  
+  // Fetch journal data from service
+  const fetchJournalData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const journalData = await journalService.getJournalById(journalId);
+      console.log('Fetched journal data:', journalData);
+      console.log(`Journal detail anxietyLevel=${journalData.anxietyLevel}, confidenceLevel=${journalData.confidenceLevel}`);
+      console.log(`Journal detail title="${journalData.title}"`);
+      
+      // Update navigation header title
+      navigation.setOptions({ 
+        title: journalData.title || `Journal Entry` 
+      });
+      
+      setJournal(journalData);
+    } catch (err) {
+      console.error('Error fetching journal:', err);
+      setError('Failed to load journal entry. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // Format date
@@ -59,7 +81,7 @@ const JournalDetailScreen: React.FC = () => {
   
   // Handle edit
   const handleEdit = () => {
-    navigation.navigate('JournalEntry', { journalId });
+    navigation.navigate('JournalDetail', { journalId });
   };
   
   // Handle delete
@@ -73,19 +95,17 @@ const JournalDetailScreen: React.FC = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            setIsLoading(true);
+            setIsDeleting(true);
             try {
-              // In a real app, this would call journalService.deleteJournal
-              console.log('Deleting journal entry:', journalId);
-              
-              // Simulate API call
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // Call journalService to delete the entry
+              await journalService.deleteJournal(journalId);
               
               // Navigate back to list on success
               navigation.goBack();
             } catch (error) {
               console.error('Error deleting journal entry:', error);
-              setIsLoading(false);
+              Alert.alert('Error', 'Failed to delete journal entry. Please try again.');
+              setIsDeleting(false);
             }
           },
         },
@@ -117,6 +137,63 @@ const JournalDetailScreen: React.FC = () => {
     }
   };
 
+  // Render loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background.default }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          
+          <Text variant="h3" color="primary" style={styles.headerTitle}>
+            Journal Entry
+          </Text>
+          
+          <View style={{ width: 32 }} />
+        </View>
+        
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.main} />
+          <Text variant="body" color="secondary" style={{ marginTop: 16 }}>
+            Loading journal entry...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Render error state
+  if (error || !journal) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background.default }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          
+          <Text variant="h3" color="primary" style={styles.headerTitle}>
+            Journal Entry
+          </Text>
+          
+          <View style={{ width: 32 }} />
+        </View>
+        
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color={colors.error.main} />
+          <Text variant="body" color="error" style={{ marginTop: 16 }}>
+            {error || 'Journal entry not found'}
+          </Text>
+          <Button
+            title="Try Again"
+            onPress={fetchJournalData}
+            style={{ marginTop: 16 }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.default }]}>
       {/* Header */}
@@ -125,8 +202,8 @@ const JournalDetailScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         
-        <Text variant="h3" color="primary" style={styles.headerTitle}>
-          Journal Entry
+        <Text variant="h3" color="primary" style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+          {journal?.title || 'Journal Entry'}
         </Text>
         
         <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
@@ -138,11 +215,11 @@ const JournalDetailScreen: React.FC = () => {
         {/* Journal Header */}
         <View style={styles.journalHeader}>
           <Text variant="h3" color="primary">
-            {mockJournal.title}
+            {journal.title}
           </Text>
           
           <Text variant="body2" color="secondary" style={styles.date}>
-            {formatDate(mockJournal.createdAt)}
+            {formatDate(journal.createdAt)}
           </Text>
         </View>
         
@@ -152,49 +229,143 @@ const JournalDetailScreen: React.FC = () => {
             <Text variant="body2" color="secondary">
               Anxiety Level:
             </Text>
-            <View style={[styles.anxietyBadge, { backgroundColor: mockJournal.anxietyLevel > 6 ? colors.error.main : mockJournal.anxietyLevel > 3 ? colors.warning.main : colors.success.main }]}>
+            <View style={[styles.anxietyBadge, { 
+              backgroundColor: journal.anxietyLevel > 6 ? colors.error.main : 
+                               journal.anxietyLevel > 3 ? colors.warning.main : 
+                               colors.success.main 
+            }]}>
               <Text variant="body2" color="light">
-                {mockJournal.anxietyLevel}/10
+                {typeof journal.anxietyLevel === 'number' ? 
+                  journal.anxietyLevel : 
+                  (journal.anxietyLevel ? parseInt(String(journal.anxietyLevel), 10) : 5)}/10
               </Text>
             </View>
           </View>
+          
+          {(journal.confidenceLevel !== undefined && journal.confidenceLevel !== null) && (
+            <View style={styles.metadataRow}>
+              <Text variant="body2" color="secondary">
+                Confidence Level:
+              </Text>
+              <View style={[styles.confidenceBadge, { 
+                backgroundColor: journal.confidenceLevel < 4 ? colors.error.main : 
+                                journal.confidenceLevel < 7 ? colors.warning.main : 
+                                colors.success.main 
+              }]}>
+                <Text variant="body2" color="light">
+                  {typeof journal.confidenceLevel === 'number' ? 
+                    journal.confidenceLevel : 
+                    (journal.confidenceLevel ? parseInt(String(journal.confidenceLevel), 10) : 5)}/10
+                </Text>
+              </View>
+            </View>
+          )}
           
           <View style={styles.metadataRow}>
             <Text variant="body2" color="secondary">
               Focus Area:
             </Text>
             <Text variant="body2" color="primary">
-              {getFocusAreaLabel(mockJournal.performanceFocusArea)}
+              {getFocusAreaLabel(journal.performanceFocusArea)}
             </Text>
           </View>
           
-          {mockJournal.event && (
+          {journal.event && (
             <View style={styles.metadataRow}>
               <Text variant="body2" color="secondary">
                 Event:
               </Text>
               <Text variant="body2" color="primary">
-                {mockJournal.event}
+                {journal.event}
               </Text>
             </View>
           )}
         </View>
         
         {/* Content */}
-        <View style={[styles.contentBox, { backgroundColor: colors.background.paper }]}>
-          <Text variant="body" color="primary" style={styles.contentText}>
-            {mockJournal.content}
-          </Text>
-        </View>
+        {journal.content && (
+          <View style={[styles.contentBox, { backgroundColor: colors.background.paper }]}>
+            <Text variant="body" color="primary" style={styles.contentText}>
+              {journal.content}
+            </Text>
+          </View>
+        )}
+        
+        {/* CBT Framework Sections */}
+        {journal.situation && (
+          <View style={[styles.contentBox, { backgroundColor: colors.background.paper }]}>
+            <Text variant="h4" color="primary" style={styles.sectionTitle}>
+              Situation
+            </Text>
+            <Text variant="body" color="primary" style={styles.contentText}>
+              {journal.situation}
+            </Text>
+          </View>
+        )}
+        
+        {journal.thoughts && (
+          <View style={[styles.contentBox, { backgroundColor: colors.background.paper }]}>
+            <Text variant="h4" color="primary" style={styles.sectionTitle}>
+              Thoughts
+            </Text>
+            <Text variant="body" color="primary" style={styles.contentText}>
+              {journal.thoughts}
+            </Text>
+          </View>
+        )}
+        
+        {journal.physicalSensations && (
+          <View style={[styles.contentBox, { backgroundColor: colors.background.paper }]}>
+            <Text variant="h4" color="primary" style={styles.sectionTitle}>
+              Physical Sensations
+            </Text>
+            <Text variant="body" color="primary" style={styles.contentText}>
+              {journal.physicalSensations}
+            </Text>
+          </View>
+        )}
+        
+        {journal.actions && (
+          <View style={[styles.contentBox, { backgroundColor: colors.background.paper }]}>
+            <Text variant="h4" color="primary" style={styles.sectionTitle}>
+              Actions
+            </Text>
+            <Text variant="body" color="primary" style={styles.contentText}>
+              {journal.actions}
+            </Text>
+          </View>
+        )}
+        
+        {journal.outcome && (
+          <View style={[styles.contentBox, { backgroundColor: colors.background.paper }]}>
+            <Text variant="h4" color="primary" style={styles.sectionTitle}>
+              Outcome
+            </Text>
+            <Text variant="body" color="primary" style={styles.contentText}>
+              {journal.outcome}
+            </Text>
+          </View>
+        )}
+        
+        {journal.reflection && (
+          <View style={[styles.contentBox, { backgroundColor: colors.background.paper }]}>
+            <Text variant="h4" color="primary" style={styles.sectionTitle}>
+              Reflection
+            </Text>
+            <Text variant="body" color="primary" style={styles.contentText}>
+              {journal.reflection}
+            </Text>
+          </View>
+        )}
         
         {/* Emotions */}
-        {mockJournal.emotions && mockJournal.emotions.length > 0 && (
+        {journal.emotions && journal.emotions.length > 0 && (
           <View style={styles.section}>
             <Text variant="h4" color="primary" style={styles.sectionTitle}>
               Emotions
             </Text>
             <View style={styles.tagsContainer}>
-              {mockJournal.emotions.map((emotion, index) => (
+              {journal.emotions.map((emotion, index) => (
                 <View key={index} style={[styles.tag, { backgroundColor: colors.primary.light }]}>
                   <Text variant="body2" color="light">
                     {emotion}
@@ -206,13 +377,13 @@ const JournalDetailScreen: React.FC = () => {
         )}
         
         {/* Triggers */}
-        {mockJournal.triggers && mockJournal.triggers.length > 0 && (
+        {journal.triggers && journal.triggers.length > 0 && (
           <View style={styles.section}>
             <Text variant="h4" color="primary" style={styles.sectionTitle}>
               Triggers
             </Text>
             <View style={styles.tagsContainer}>
-              {mockJournal.triggers.map((trigger, index) => (
+              {journal.triggers.map((trigger, index) => (
                 <View key={index} style={[styles.tag, { backgroundColor: colors.warning.light }]}>
                   <Text variant="body2" color="light">
                     {trigger}
@@ -223,14 +394,32 @@ const JournalDetailScreen: React.FC = () => {
           </View>
         )}
         
+        {/* Techniques Used */}
+        {journal.techniquesUsed && journal.techniquesUsed.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="h4" color="primary" style={styles.sectionTitle}>
+              Techniques Used
+            </Text>
+            <View style={styles.tagsContainer}>
+              {journal.techniquesUsed.map((technique, index) => (
+                <View key={index} style={[styles.tag, { backgroundColor: colors.primary.light }]}>
+                  <Text variant="body2" color="light">
+                    {technique}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        
         {/* Coping Strategies */}
-        {mockJournal.copingStrategies && mockJournal.copingStrategies.length > 0 && (
+        {journal.copingStrategies && journal.copingStrategies.length > 0 && (
           <View style={styles.section}>
             <Text variant="h4" color="primary" style={styles.sectionTitle}>
               Coping Strategies
             </Text>
             <View style={styles.tagsContainer}>
-              {mockJournal.copingStrategies.map((strategy, index) => (
+              {journal.copingStrategies.map((strategy, index) => (
                 <View key={index} style={[styles.tag, { backgroundColor: colors.success.light }]}>
                   <Text variant="body2" color="light">
                     {strategy}
@@ -246,8 +435,8 @@ const JournalDetailScreen: React.FC = () => {
           title="Delete Entry"
           variant="outline"
           onPress={handleDelete}
-          loading={isLoading}
-          style={[styles.deleteButton, { borderColor: colors.error.main }]}
+          loading={isDeleting}
+          style={styles.deleteButton}
           textStyle={{ color: colors.error.main }}
         />
       </ScrollView>
@@ -305,16 +494,21 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
+  confidenceBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
   contentBox: {
     borderRadius: 12,
     padding: 16,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   contentText: {
     lineHeight: 24,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
     marginBottom: 12,
@@ -332,6 +526,18 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     marginTop: 16,
+    borderColor: '#e53935',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
 });
 

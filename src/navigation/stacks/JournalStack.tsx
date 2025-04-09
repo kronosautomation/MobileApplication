@@ -7,13 +7,8 @@ import JournalEntryScreen from '../../screens/journal/JournalEntryScreen';
 import NewJournalEntryScreen from '../../screens/journal/NewJournalEntryScreen';
 import JournalCalendarScreen from '../../screens/journal/JournalCalendarScreen';
 
-// Define types for journal stack navigation
-export type JournalStackParamList = {
-  JournalMain: undefined;
-  JournalEntry: { id: string; date: string };
-  NewJournalEntry: undefined;
-  JournalCalendar: undefined;
-};
+// Import types from the .ts file
+import { JournalStackParamList } from './JournalStack.ts';
 
 const Stack = createNativeStackNavigator<JournalStackParamList>();
 

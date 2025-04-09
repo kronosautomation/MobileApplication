@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { syncService } from '../../services/storage';
+import syncService from '../../services/storage/syncService';
 import { useNetworkStatus } from '../../hooks';
 
 /**
@@ -149,7 +149,7 @@ const SyncIndicator: React.FC = () => {
     <View 
       style={[styles.container, { backgroundColor: colors.background.paper }]}
       accessible={true}
-      accessibilityRole="status"
+      accessibilityRole="alert"
       accessibilityLabel={isSyncing ? 'Syncing data' : syncNeeded ? 'Sync needed' : `Last synced ${formatLastSync()}`}
     >
       {isSyncing ? (

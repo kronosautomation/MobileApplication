@@ -1,5 +1,6 @@
 {
   "expo": {
+    "newArchEnabled": true,
     "name": "MindfulMastery",
     "slug": "mindful-mastery",
     "version": "1.0.0",
@@ -18,17 +19,49 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mindfulmastery.app"
+      "bundleIdentifier": "com.mindfulmastery.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow MindfulMastery to access your photos to update your profile picture.",
+        "NSCameraUsageDescription": "Allow MindfulMastery to access your camera to take profile pictures."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.mindfulmastery.app"
+      "package": "com.mindfulmastery.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to your photos to update your profile picture.",
+          "cameraPermission": "The app needs access to your camera to take profile pictures."
+        }
+      ],
+      "expo-asset",
+      "expo-font",
+      "expo-localization",
+      [
+        "@react-native-community/datetimepicker"
+      ]
+    ],
+    "extra": {
+      "apiBaseUrl": "http://10.0.2.2:5000/api/v1",
+      "revenueCatApiKeyIos": "your_revenuecat_ios_key",
+      "revenueCatApiKeyAndroid": "your_revenuecat_android_key",
+      "eas": {
+        "projectId": "your-project-id"
+      }
     }
   }
 }

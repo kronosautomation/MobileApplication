@@ -12,73 +12,66 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AuthStackParamList } from '../../navigation/stacks/AuthStack';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts/AuthContext';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AuthStackParamList } from '../../types';
+import { useAuth } from '../../auth';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context';
 
-type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+type LoginScreenProps = {
+  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+};
 
-const LoginScreen = ({ navigation }: Props) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+  const { login } = useAuth();
+  const { currentTheme } = useTheme();
+  const { colors } = currentTheme;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
-
-  // Generate a device token for API authentication
-  const getDeviceToken = (): string => {
-    const deviceId = Device.deviceName ?? Device.modelName ?? 'unknown-device';
-    const installationId = Constants.installationId ?? 'unknown-installation';
-    return `${deviceId}-${installationId}`;
-  };
 
   const handleLogin = async () => {
-    // Basic validation
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Please enter both email and password');
       return;
     }
-
+    
     setIsLoading(true);
-
     try {
-      // Use the auth context login method with device token
-      await login(email, password, getDeviceToken());
-      // Navigation will be handled by the root navigator based on auth state
+      const deviceToken = Device.deviceName ?? Device.modelName ?? 'mobile-device';
+      await login(email, password, deviceToken);
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Login failed. Please check your credentials and try again.';
-      Alert.alert('Login Failed', errorMessage);
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Failed to login. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.default }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
-            <Text style={styles.logoText}>MindfulMastery</Text>
-            <Text style={styles.tagline}>Begin your mindfulness journey</Text>
+            <Text style={[styles.logoText, { color: colors.primary.main }]}>MindfulMastery</Text>
+            <Text style={[styles.tagline, { color: colors.text.secondary }]}>Begin your mindfulness journey</Text>
           </View>
 
-          <View style={styles.formContainer}>
-            <Text style={styles.formTitle}>Log in to your account</Text>
+          <View style={[styles.formContainer, { backgroundColor: colors.background.paper }]}>
+            <Text style={[styles.formTitle, { color: colors.text.primary }]}>Log in to your account</Text>
 
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={22} color="#999" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, { backgroundColor: colors.background.paper, borderColor: colors.neutral.lighter }]}>
+              <Ionicons name="mail-outline" size={22} color={colors.text.hint} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text.primary }]}
                 placeholder="Email"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.hint}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -87,12 +80,12 @@ const LoginScreen = ({ navigation }: Props) => {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={22} color="#999" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, { backgroundColor: colors.background.paper, borderColor: colors.neutral.lighter }]}>
+              <Ionicons name="lock-closed-outline" size={22} color={colors.text.hint} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text.primary }]}
                 placeholder="Password"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.hint}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -105,7 +98,7 @@ const LoginScreen = ({ navigation }: Props) => {
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={22}
-                  color="#999"
+                  color={colors.text.hint}
                 />
               </TouchableOpacity>
             </View>
@@ -113,27 +106,28 @@ const LoginScreen = ({ navigation }: Props) => {
             <TouchableOpacity
               style={styles.forgotPasswordLink}
               onPress={() => navigation.navigate('ForgotPassword')}
+              testID="forgot-password-button"
             >
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              <Text style={[styles.forgotPasswordText, { color: colors.primary.main }]}>Forgot Password?</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.loginButton}
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={isLoading}
               testID="login-button"
             >
               {isLoading ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color="white" size="small" />
               ) : (
                 <Text style={styles.loginButtonText}>Log In</Text>
               )}
             </TouchableOpacity>
 
             <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
+              <View style={[styles.dividerLine, { backgroundColor: colors.neutral.lighter }]} />
+              <Text style={[styles.dividerText, { color: colors.text.hint }]}>OR</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.neutral.lighter }]} />
             </View>
 
             <TouchableOpacity
@@ -141,8 +135,9 @@ const LoginScreen = ({ navigation }: Props) => {
               onPress={() => navigation.navigate('Register')}
               testID="register-link"
             >
-              <Text style={styles.registerText}>
-                New to MindfulMastery? <Text style={styles.registerLinkText}>Create an account</Text>
+              <Text style={[styles.registerText, { color: colors.text.secondary }]}>
+                Don't have an account?{' '}
+                <Text style={[styles.registerLinkText, { color: colors.primary.main }]}>Sign Up</Text>
               </Text>
             </TouchableOpacity>
           </View>
@@ -155,7 +150,6 @@ const LoginScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -172,12 +166,9 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#4A62FF',
-    marginBottom: 10,
   },
   tagline: {
     fontSize: 16,
-    color: '#666',
   },
   formContainer: {
     backgroundColor: 'white',
@@ -192,7 +183,6 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 20,
   },
   inputContainer: {
@@ -262,6 +252,9 @@ const styles = StyleSheet.create({
   registerLinkText: {
     color: '#4A62FF',
     fontWeight: 'bold',
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#ccc',
   },
 });
 

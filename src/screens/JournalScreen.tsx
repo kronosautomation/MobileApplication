@@ -1,8 +1,14 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { JournalStackParamList } from '../navigation/stacks/JournalStack';
 import { Ionicons } from '@expo/vector-icons';
+import { journalService } from '../api/journalService';
+import { useTheme } from '../context/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import { MainTabParamList } from '../types';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 type Props = NativeStackScreenProps<JournalStackParamList, 'JournalMain'>;
 
@@ -41,30 +47,85 @@ const moodIcons: Record<string, string> = {
 };
 
 const JournalScreen = ({ navigation }: Props) => {
+  const { currentTheme } = useTheme();
+  const [isLimitReached, setIsLimitReached] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+
+  useEffect(() => {
+    checkMonthlyLimit();
+  }, []);
+
+  const checkMonthlyLimit = async () => {
+    try {
+      const subscriptionJson = await AsyncStorage.getItem('@MindfulMastery:subscription');
+      const subscription = subscriptionJson ? JSON.parse(subscriptionJson) : { tier: 'Free' };
+      
+      if (subscription.tier === 'Free') {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        const entries = await journalService.getJournals(startOfMonth, endOfMonth);
+        setIsLimitReached(entries.length >= 5);
+      }
+    } catch (error) {
+      console.error('Error checking monthly limit:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpgradePress = () => {
+    // Navigate to the subscription screen in the Profile tab
+    tabNavigation.navigate('Profile', { screen: 'Subscription' });
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: currentTheme.colors.background.default }]}>
+      <View style={[styles.header, { backgroundColor: currentTheme.colors.background.paper }]}>
         <View>
-          <Text style={styles.title}>Journal</Text>
-          <Text style={styles.subtitle}>Record your mindfulness journey</Text>
+          <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Journal</Text>
+          <Text style={[styles.subtitle, { color: currentTheme.colors.text.secondary }]}>Record your mindfulness journey</Text>
         </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity 
-            style={styles.calendarButton}
-            onPress={() => navigation.navigate('JournalCalendar')}
+            style={[styles.calendarButton, { backgroundColor: currentTheme.colors.primary.light }]}
+            onPress={() => navigation.navigate('JournalCalendar' as never)}
           >
-            <Ionicons name="calendar-outline" size={24} color="#4A62FF" />
+            <Ionicons name="calendar-outline" size={24} color={currentTheme.colors.primary.main} />
           </TouchableOpacity>
         </View>
       </View>
       
-      <TouchableOpacity 
-        style={styles.newEntryButton}
-        onPress={() => navigation.navigate('NewJournalEntry')}
-      >
-        <Ionicons name="add" size={24} color="#FFF" />
-        <Text style={styles.newEntryText}>New Entry</Text>
-      </TouchableOpacity>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={currentTheme.colors.primary.main} />
+        </View>
+      ) : (
+        <TouchableOpacity 
+          style={[
+            styles.newEntryButton, 
+            { backgroundColor: isLimitReached ? currentTheme.colors.neutral.light : currentTheme.colors.primary.main }
+          ]}
+          onPress={isLimitReached ? handleUpgradePress : () => navigation.navigate('NewJournalEntry' as never)}
+          disabled={isLoading}
+        >
+          <Ionicons name="add" size={24} color="#FFF" />
+          <Text style={styles.newEntryText}>
+            {isLimitReached ? 'Upgrade to Premium' : 'New Entry'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {isLimitReached && (
+        <View style={[styles.limitMessage, { backgroundColor: currentTheme.colors.warning.light }]}>
+          <Text style={[styles.limitText, { color: currentTheme.colors.warning.dark }]}>
+            You've reached your monthly limit of 5 journal entries.{'\n'}
+            Upgrade to Premium for unlimited entries!
+          </Text>
+        </View>
+      )}
       
       <FlatList
         data={journalEntries}
@@ -113,7 +174,6 @@ const JournalScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
@@ -124,11 +184,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#4A62FF',
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
     marginTop: 5,
   },
   headerButtons: {
@@ -138,14 +196,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#e8efff',
     justifyContent: 'center',
     alignItems: 'center',
   },
   newEntryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A62FF',
     borderRadius: 12,
     margin: 20,
     marginTop: 0,
@@ -161,6 +217,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
     marginLeft: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  limitMessage: {
+    margin: 20,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  limitText: {
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
   },
   entriesList: {
     padding: 20,

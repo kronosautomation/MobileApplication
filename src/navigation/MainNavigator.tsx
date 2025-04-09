@@ -37,6 +37,9 @@ const MainNavigator: React.FC = () => {
             fontSize: 12,
             fontFamily: 'Inter-Medium',
           },
+          tabBarIconStyle: {
+            marginBottom: -3, // Adjust icon position
+          },
         }}
       >
         <Tab.Screen
@@ -44,7 +47,7 @@ const MainNavigator: React.FC = () => {
           component={HomeNavigator}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" color={color} size={size} />
+              <Ionicons name="home" color={color} size={size} />
             ),
           }}
         />
@@ -54,7 +57,7 @@ const MainNavigator: React.FC = () => {
           component={MeditationNavigator}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="leaf-outline" color={color} size={size} />
+              <Ionicons name="leaf" color={color} size={size} />
             ),
           }}
         />
@@ -64,7 +67,7 @@ const MainNavigator: React.FC = () => {
           component={JournalNavigator}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="book-outline" color={color} size={size} />
+              <Ionicons name="book" color={color} size={size} />
             ),
           }}
         />
@@ -74,7 +77,7 @@ const MainNavigator: React.FC = () => {
           component={AchievementsNavigator}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="trophy-outline" color={color} size={size} />
+              <Ionicons name="trophy" color={color} size={size} />
             ),
           }}
         />
@@ -84,7 +87,7 @@ const MainNavigator: React.FC = () => {
           component={ProfileNavigator}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-outline" color={color} size={size} />
+              <Ionicons name="person" color={color} size={size} />
             ),
           }}
         />

@@ -1,32 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { JournalStackParamList } from '../../navigation/stacks/JournalStack';
+import { PerformanceJournal, PerformanceFocusArea } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
+import { journalService } from '../../api/journalService';
 
 type Props = NativeStackScreenProps<JournalStackParamList, 'JournalEntry'>;
-
-// Sample journal entry (in a real app, you would fetch this based on the ID)
-const journalEntry = {
-  id: '1',
-  date: 'March 17, 2025',
-  title: 'Finding Balance',
-  content: `Today I focused on finding balance in my daily routine. The morning meditation helped me center my thoughts and prepare for the day ahead.
-
-I noticed that when I started my day with mindfulness, the rest of my day seemed to flow more smoothly. I was less reactive to stressful situations and more present in my interactions with others.
-
-During my afternoon walk, I practiced mindful walking, paying attention to each step and the sensations in my body. It was a great way to reset in the middle of the day.
-
-Things I'm grateful for today:
-- The beautiful weather
-- A productive meeting with my team
-- Making time for self-care
-
-Tomorrow I want to continue this practice and perhaps extend my morning meditation by a few minutes.`,
-  mood: 'peaceful',
-  tags: ['balance', 'gratitude', 'mindfulness'],
-  meditationDuration: 15,
-};
 
 // Map moods to icons and colors
 const moodConfig: Record<string, { icon: string; color: string }> = {
@@ -35,57 +15,285 @@ const moodConfig: Record<string, { icon: string; color: string }> = {
   grateful: { icon: 'heart-outline', color: '#E91E63' },
   happy: { icon: 'sunny-outline', color: '#FFC107' },
   reflective: { icon: 'water-outline', color: '#2196F3' },
+  nervous: { icon: 'pulse-outline', color: '#FF9800' },
+  anxious: { icon: 'flash-outline', color: '#9C27B0' },
+  focused: { icon: 'eye-outline', color: '#607D8B' },
 };
 
 const JournalEntryScreen = ({ route, navigation }: Props) => {
-  const { id, date } = route.params;
+  const { journalId } = route.params;
   
-  // In a real app, you would fetch the entry using the ID
+  const [journal, setJournal] = useState<PerformanceJournal | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
+  // Fetch journal entry when component mounts
+  useEffect(() => {
+    fetchJournalEntry();
+  }, [journalId]);
+  
+  // Fetch journal entry from service
+  const fetchJournalEntry = async () => {
+    if (!journalId) {
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const journalData = await journalService.getJournalById(journalId);
+      console.log('Fetched journal entry:', journalData);
+      setJournal(journalData);
+    } catch (err) {
+      console.error('Error fetching journal entry:', err);
+      setError('Failed to load journal entry');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Format date
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return 'Unknown date';
+    
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+  
+  // Handle edit
+  const handleEdit = () => {
+    navigation.navigate('NewJournalEntry', { existingJournalId: journalId });
+  };
+  
+  // Handle delete
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Journal Entry',
+      'Are you sure you want to delete this journal entry? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              await journalService.deleteJournal(journalId);
+              navigation.navigate('JournalList');
+            } catch (error) {
+              console.error('Error deleting journal entry:', error);
+              Alert.alert('Error', 'Failed to delete journal entry');
+              setIsLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Get the primary emotion if available
+  const getPrimaryEmotion = (): string | undefined => {
+    if (!journal?.emotions || journal.emotions.length === 0) {
+      return undefined;
+    }
+    return journal.emotions[0];
+  };
+  
+  // Loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4A62FF" />
+          <Text style={styles.loadingText}>Loading journal entry...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Error state
+  if (error || !journal) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color="#e74c3c" />
+          <Text style={styles.errorText}>{error || 'Journal entry not found'}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchJournalEntry}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Get the primary emotion for display
+  const primaryEmotion = getPrimaryEmotion();
+  const moodData = primaryEmotion && moodConfig[primaryEmotion.toLowerCase()];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.date}>{journalEntry.date}</Text>
-          <Text style={styles.title}>{journalEntry.title}</Text>
+          <Text style={styles.date}>
+            {formatDate(journal.createdAt)}
+          </Text>
+          <Text style={styles.title}>
+            {journal.title || 'Untitled Journal Entry'}
+          </Text>
           
-          <View style={styles.moodContainer}>
-            <View style={[
-              styles.moodIcon, 
-              { backgroundColor: moodConfig[journalEntry.mood]?.color + '20' || '#e8efff' }
-            ]}>
-              <Ionicons 
-                name={moodConfig[journalEntry.mood]?.icon || 'ellipsis-horizontal'} 
-                size={20} 
-                color={moodConfig[journalEntry.mood]?.color || '#4A62FF'} 
-              />
-            </View>
-            <Text style={styles.moodText}>
-              Feeling {journalEntry.mood}
-            </Text>
-          </View>
-          
-          {journalEntry.meditationDuration && (
-            <View style={styles.meditationInfo}>
-              <Ionicons name="time-outline" size={16} color="#666" />
-              <Text style={styles.meditationText}>
-                Meditated for {journalEntry.meditationDuration} minutes
+          {primaryEmotion && moodData && (
+            <View style={styles.moodContainer}>
+              <View style={[
+                styles.moodIcon, 
+                { backgroundColor: moodData.color + '20' }
+              ]}>
+                <Ionicons 
+                  name={moodData.icon} 
+                  size={20} 
+                  color={moodData.color} 
+                />
+              </View>
+              <Text style={styles.moodText}>
+                Feeling {primaryEmotion.toLowerCase()}
               </Text>
             </View>
           )}
+          
+          <View style={styles.metadataContainer}>
+            <View style={styles.metadataItem}>
+              <Ionicons name="pulse" size={16} color="#666" />
+              <Text style={styles.metadataText}>Anxiety Level: {journal.anxietyLevel}/10</Text>
+            </View>
+            
+            {journal.confidenceLevel !== undefined && (
+              <View style={styles.metadataItem}>
+                <Ionicons name="trophy" size={16} color="#666" />
+                <Text style={styles.metadataText}>Confidence Level: {journal.confidenceLevel}/10</Text>
+              </View>
+            )}
+            
+            {journal.performanceFocusArea !== undefined && (
+              <View style={styles.metadataItem}>
+                <Ionicons name="flag" size={16} color="#666" />
+                <Text style={styles.metadataText}>
+                  Focus Area: {PerformanceFocusArea[journal.performanceFocusArea]}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
         
-        <View style={styles.contentContainer}>
-          <Text style={styles.content}>{journalEntry.content}</Text>
-        </View>
+        {/* Main content */}
+        {journal.content && (
+          <View style={styles.contentContainer}>
+            <Text style={styles.content}>{journal.content}</Text>
+          </View>
+        )}
         
-        {journalEntry.tags && journalEntry.tags.length > 0 && (
+        {/* Situation section */}
+        {journal.situation && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Situation</Text>
+            <Text style={styles.sectionContent}>{journal.situation}</Text>
+          </View>
+        )}
+        
+        {/* Thoughts section */}
+        {journal.thoughts && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Thoughts</Text>
+            <Text style={styles.sectionContent}>{journal.thoughts}</Text>
+          </View>
+        )}
+        
+        {/* Physical Sensations section */}
+        {journal.physicalSensations && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Physical Sensations</Text>
+            <Text style={styles.sectionContent}>{journal.physicalSensations}</Text>
+          </View>
+        )}
+        
+        {/* Actions section */}
+        {journal.actions && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Actions</Text>
+            <Text style={styles.sectionContent}>{journal.actions}</Text>
+          </View>
+        )}
+        
+        {/* Outcome section */}
+        {journal.outcome && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Outcome</Text>
+            <Text style={styles.sectionContent}>{journal.outcome}</Text>
+          </View>
+        )}
+        
+        {/* Reflection section */}
+        {journal.reflection && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Reflection</Text>
+            <Text style={styles.sectionContent}>{journal.reflection}</Text>
+          </View>
+        )}
+        
+        {/* Emotions display */}
+        {journal.emotions && journal.emotions.length > 0 && (
           <View style={styles.tagsContainer}>
-            <Text style={styles.tagsLabel}>Tags:</Text>
+            <Text style={styles.tagsLabel}>Emotions:</Text>
             <View style={styles.tagsList}>
-              {journalEntry.tags.map((tag, index) => (
-                <View key={index} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag}</Text>
+              {journal.emotions.map((emotion, index) => (
+                <View key={index} style={[styles.tag, { backgroundColor: '#e8efff' }]}>
+                  <Text style={styles.tagText}>{emotion}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        
+        {/* Techniques Used display */}
+        {journal.techniquesUsed && journal.techniquesUsed.length > 0 && (
+          <View style={styles.tagsContainer}>
+            <Text style={styles.tagsLabel}>Techniques Used:</Text>
+            <View style={styles.tagsList}>
+              {journal.techniquesUsed.map((technique, index) => (
+                <View key={index} style={[styles.tag, { backgroundColor: '#f0f8ff' }]}>
+                  <Text style={styles.tagText}>{technique}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        
+        {/* Coping Strategies display */}
+        {journal.copingStrategies && journal.copingStrategies.length > 0 && (
+          <View style={styles.tagsContainer}>
+            <Text style={styles.tagsLabel}>Coping Strategies:</Text>
+            <View style={styles.tagsList}>
+              {journal.copingStrategies.map((strategy, index) => (
+                <View key={index} style={[styles.tag, { backgroundColor: '#f0fff0' }]}>
+                  <Text style={styles.tagText}>{strategy}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        
+        {/* Triggers display */}
+        {journal.triggers && journal.triggers.length > 0 && (
+          <View style={styles.tagsContainer}>
+            <Text style={styles.tagsLabel}>Triggers:</Text>
+            <View style={styles.tagsList}>
+              {journal.triggers.map((trigger, index) => (
+                <View key={index} style={[styles.tag, { backgroundColor: '#fff0f0' }]}>
+                  <Text style={styles.tagText}>{trigger}</Text>
                 </View>
               ))}
             </View>
@@ -104,20 +312,14 @@ const JournalEntryScreen = ({ route, navigation }: Props) => {
         <View style={styles.actionButtonsRight}>
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => {
-              // In a real app, you would navigate to an edit screen
-              navigation.goBack();
-            }}
+            onPress={handleEdit}
           >
             <Ionicons name="create-outline" size={24} color="#666" />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => {
-              // In a real app, you would implement delete functionality
-              navigation.goBack();
-            }}
+            onPress={handleDelete}
           >
             <Ionicons name="trash-outline" size={24} color="#666" />
           </TouchableOpacity>
@@ -167,12 +369,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  meditationInfo: {
+  metadataContainer: {
+    marginTop: 10,
+    marginBottom: 15,
+  },
+  metadataItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginBottom: 5,
   },
-  meditationText: {
+  metadataText: {
     fontSize: 14,
     color: '#666',
     marginLeft: 5,
@@ -193,6 +399,28 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 24,
   },
+  sectionContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  sectionContent: {
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 24,
+  },
   tagsContainer: {
     marginBottom: 20,
   },
@@ -207,7 +435,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   tag: {
-    backgroundColor: '#e8efff',
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -216,7 +443,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 14,
-    color: '#4A62FF',
+    color: '#333',
   },
   actionBar: {
     position: 'absolute',
@@ -242,6 +469,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 10,
+    marginBottom: 20,
+    fontSize: 16,
+    color: '#e74c3c',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#4A62FF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

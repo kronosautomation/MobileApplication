@@ -125,7 +125,7 @@ const SubscriptionScreen: React.FC = () => {
           <View 
             style={[styles.heroImagePlaceholder, { backgroundColor: colors.primary.light }]}
           >
-            <Ionicons name="diamond" size={80} color={colors.primary.main} />
+            <Ionicons name="star" size={80} color={colors.primary.main} />
           </View>
           <Text variant="h2" style={styles.heroTitle}>
             Upgrade to Premium

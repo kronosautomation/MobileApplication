@@ -1,5 +1,5 @@
 import React from 'react';
-import { AuthProvider, useAuth } from './AuthContext';
+import { AuthProvider, useAuth } from '../auth';
 import { SubscriptionProvider, useSubscription } from './SubscriptionContext';
 import { ThemeProvider, useTheme } from './ThemeContext';
 

@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  Button as RNButton,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { Text, TextInput, Button } from '../ui';
@@ -15,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PerformanceJournal, PerformanceFocusArea } from '../../types';
 import Slider from '@react-native-community/slider';
 import { format } from 'date-fns';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 interface JournalEntryFormProps {
   initialValues?: Partial<PerformanceJournal>;
@@ -85,11 +84,10 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({
   // Custom date picker modal
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   
-  // Handle date change
-  const handleDateChange = () => {
+  // Handle date change with the selected date
+  const handleDateChange = (date: Date) => {
+    setEventDate(date);
     setDatePickerVisible(false);
-    // In a real implementation, we would update the eventDate here
-    // For now, we'll just keep the current date
   };
   
   // Toggle item selection in an array
@@ -257,27 +255,14 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({
             <Ionicons name="calendar-outline" size={20} color={colors.primary.main} />
           </TouchableOpacity>
           
-          {/* Simple Date Picker Modal */}
-          <Modal
-            visible={datePickerVisible}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setDatePickerVisible(false)}
-          >
-            <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-              <View style={[styles.modalContent, { backgroundColor: colors.background.paper }]}>
-                <Text variant="subtitle" style={styles.modalTitle}>Select Date</Text>
-                <Text variant="body" style={styles.dateText}>{format(eventDate, 'MMMM dd, yyyy')}</Text>
-                <Text variant="body2" color="secondary" style={styles.modalText}>
-                  Date picker would be shown here in a real implementation.
-                </Text>
-                <View style={styles.modalButtons}>
-                  <RNButton title="Cancel" onPress={() => setDatePickerVisible(false)} />
-                  <RNButton title="OK" onPress={handleDateChange} />
-                </View>
-              </View>
-            </View>
-          </Modal>
+          {/* Date Picker Modal */}
+          <DateTimePickerModal
+            isVisible={datePickerVisible}
+            mode="date"
+            date={eventDate}
+            onConfirm={handleDateChange}
+            onCancel={() => setDatePickerVisible(false)}
+          />
         </View>
         
         {/* Journal Content */}
@@ -424,39 +409,8 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    borderRadius: 12,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  modalTitle: {
-    marginBottom: 16,
-    textAlign: 'center',
-  },
   dateText: {
-    marginBottom: 16,
-    textAlign: 'center',
-    fontSize: 18,
-  },
-  modalText: {
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    fontSize: 16,
   },
   container: {
     flex: 1,

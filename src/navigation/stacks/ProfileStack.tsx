@@ -7,6 +7,7 @@ import SettingsScreen from '../../screens/profile/SettingsScreen';
 import NotificationsScreen from '../../screens/profile/NotificationsScreen';
 import AccountScreen from '../../screens/profile/AccountScreen';
 import EmailSettingsScreen from '../../screens/profile/EmailSettingsScreen';
+import EditProfileScreen from '../../screens/profile/EditProfileScreen';
 
 // Define types for profile stack navigation
 export type ProfileStackParamList = {
@@ -15,6 +16,7 @@ export type ProfileStackParamList = {
   Notifications: undefined;
   Account: undefined;
   EmailSettings: undefined;
+  EditProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -59,6 +61,11 @@ const ProfileStack = () => {
         name="EmailSettings" 
         component={EmailSettingsScreen} 
         options={{ title: 'Email Settings' }} 
+      />
+      <Stack.Screen 
+        name="EditProfile" 
+        component={EditProfileScreen} 
+        options={{ title: 'Edit Profile' }} 
       />
     </Stack.Navigator>
   );

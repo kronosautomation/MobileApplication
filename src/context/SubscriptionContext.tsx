@@ -1,16 +1,16 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { subscriptionService } from '../api';
 import { SubscriptionInfo, SubscriptionTier, SubscriptionStatus } from '../types';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../auth';
 import * as Purchases from 'react-native-purchases';
 
 interface SubscriptionContextType {
   subscriptionInfo: SubscriptionInfo | null;
-  offerings: Purchases.Offerings | null;
+  offerings: Purchases.PurchasesOfferings | null;
   isLoading: boolean;
   error: string | null;
   refreshSubscriptionStatus: () => Promise<void>;
-  purchasePackage: (pkg: Purchases.Package) => Promise<void>;
+  purchasePackage: (pkg: Purchases.PurchasesPackage) => Promise<void>;
   restorePurchases: () => Promise<boolean>;
   cancelSubscription: (reason?: string) => Promise<void>;
   isPremium: boolean;
@@ -49,7 +49,7 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
 export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo | null>(defaultSubscriptionInfo);
-  const [offerings, setOfferings] = useState<Purchases.Offerings | null>(null);
+  const [offerings, setOfferings] = useState<Purchases.PurchasesOfferings | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,7 +97,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   // Purchase a subscription package
-  const purchasePackage = async (pkg: Purchases.Package) => {
+  const purchasePackage = async (pkg: Purchases.PurchasesPackage) => {
     try {
       setIsLoading(true);
       setError(null);

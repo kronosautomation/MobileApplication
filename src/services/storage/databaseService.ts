@@ -11,6 +11,7 @@ class DatabaseService {
     JOURNAL_ENTRIES: '@MindfulMastery:journalEntries',
     SYNC_QUEUE: '@MindfulMastery:syncQueue',
     SUBSCRIPTION_STATUS: '@MindfulMastery:subscriptionStatus',
+    SETTINGS: '@MindfulMastery:settings',
   };
 
   constructor() {
@@ -102,7 +103,6 @@ class DatabaseService {
     if (!this.isInitialized) {
       await this.initialize();
     }
-    
     try {
       // Get the current items
       const items = await this.getAll<T>(collectionKey);
@@ -183,6 +183,21 @@ class DatabaseService {
     } catch (error) {
       console.error('Error clearing all data:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get a single item from a collection
+   * @param collectionKey The storage key to query
+   * @returns Promise resolving to the item or null if not found
+   */
+  async getItem<T>(collectionKey: keyof typeof this.STORAGE_KEYS): Promise<T | null> {
+    try {
+      const items = await this.getAll<T>(collectionKey);
+      return items[0] || null;
+    } catch (error) {
+      console.error(`Error getting item for key ${collectionKey}:`, error);
+      return null;
     }
   }
 }
