@@ -56,7 +56,9 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "http://10.0.2.2:5000/api/v1",
+      "apiBaseUrl": "http://10.0.2.2:5000",
+      "apiBaseUrlIos": "http://localhost:5000",
+      "apiBaseUrlProduction": "https://api.mindfulmastery.app",
       "revenueCatApiKeyIos": "your_revenuecat_ios_key",
       "revenueCatApiKeyAndroid": "your_revenuecat_android_key",
       "eas": {

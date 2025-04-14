@@ -4,11 +4,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Interface for user stats
 export interface UserStats {
+  userId: string;
   daysActive: number;
   totalMeditations: number;
-  totalAchievements: number;
+  completedMeditations: number;
+  abandonedMeditations: number;
+  totalMinutes: number;
+  averageSessionMinutes: number;
   currentStreak: number;
+  longestStreak: number;
   lastSessionDate?: string;
+  averageAnxietyReduction: number;
+  totalAchievements: number;
   completionRate: number;
 }
 
@@ -28,7 +35,7 @@ class UserProfileService {
         throw new Error('User ID not available');
       }
       
-      const user = await apiClient.get<User>(`/user-profiles/${userId}`);
+      const user = await apiClient.get<User>(`/api/v1/user-profiles/${userId}`);
       console.log('✅ User profile retrieved successfully');
       
       // Cache user profile for offline use
@@ -59,7 +66,7 @@ class UserProfileService {
         throw new Error('User ID not available');
       }
       
-      const updatedUser = await apiClient.put<User>(`/user-profiles/${userId}`, profileData);
+      const updatedUser = await apiClient.put<User>(`/api/v1/user-profiles/${userId}`, profileData);
       console.log('✅ User profile updated successfully');
       
       // Update cached profile
@@ -104,7 +111,7 @@ class UserProfileService {
       
       // Upload the image
       const response = await apiClient.uploadFile<{imageUrl: string}>(
-        `/user-profiles/${userId}/image`,
+        `/api/v1/user-profiles/${userId}/image`,
         formData
       );
       
@@ -127,7 +134,7 @@ class UserProfileService {
       }
       
       try {
-        const stats = await apiClient.get<UserStats>(`/user-profiles/${userId}/stats`);
+        const stats = await apiClient.get<UserStats>(`/api/v1/user-profiles/${userId}/stats`);
         console.log('✅ User stats retrieved successfully from API');
         
         // Save to local storage for offline access
@@ -147,11 +154,18 @@ class UserProfileService {
         // If no local stats, create default ones
         console.log('⚠️ No cached stats found, using defaults');
         const defaultStats: UserStats = {
+          userId: userId,
           daysActive: 1,
           totalMeditations: 0,
-          totalAchievements: 0,
+          completedMeditations: 0,
+          abandonedMeditations: 0,
+          totalMinutes: 0,
+          averageSessionMinutes: 0,
           currentStreak: 0,
+          longestStreak: 0,
           lastSessionDate: new Date().toISOString(),
+          averageAnxietyReduction: 0,
+          totalAchievements: 0,
           completionRate: 0
         };
         
@@ -177,7 +191,7 @@ class UserProfileService {
       }
       
       const data = await apiClient.get<DailyMeditationData[]>(
-        `/user-profiles/${userId}/meditation-data`
+        `/api/v1/user-profiles/${userId}/meditation-data`
       );
       console.log('✅ User meditation data retrieved successfully');
       return data;
@@ -195,18 +209,31 @@ class UserProfileService {
       
       // Get current stats
       const currentStats = await this.getUserStatsFromLocalStorage(userId) || {
+        userId: userId,
         daysActive: 1,
         totalMeditations: 0,
-        totalAchievements: 0,
+        completedMeditations: 0,
+        abandonedMeditations: 0,
+        totalMinutes: 0,
+        averageSessionMinutes: 0,
         currentStreak: 0,
+        longestStreak: 0,
+        averageAnxietyReduction: 0,
+        totalAchievements: 0,
         completionRate: 0
       };
       
       // Calculate new completion rate
       const totalSessions = currentStats.totalMeditations + 1;
       const completedSessions = completed 
-        ? (currentStats.completionRate * currentStats.totalMeditations / 100) + 1 
-        : (currentStats.completionRate * currentStats.totalMeditations / 100);
+        ? currentStats.completedMeditations + 1
+        : currentStats.completedMeditations;
+      const abandonedSessions = completed
+        ? currentStats.abandonedMeditations
+        : currentStats.abandonedMeditations + 1;
+      
+      // Update total meditation time
+      const totalMinutes = currentStats.totalMinutes + sessionDurationMinutes;
       
       // Check if this is a new day for streak calculation
       const today = new Date().toISOString().split('T')[0];
@@ -221,112 +248,185 @@ class UserProfileService {
           // New day, increment streak
           streak += 1;
         }
+      } else {
+        // Reset streak if session was abandoned
+        streak = 0;
       }
+      
+      // Update longest streak if current streak is longer
+      const longestStreak = Math.max(currentStats.longestStreak, streak);
+      
+      // Calculate new average session minutes
+      const averageSessionMinutes = totalMinutes / totalSessions;
+      
+      // Calculate new completion rate
+      const completionRate = (completedSessions / totalSessions) * 100;
       
       // Update stats
       const updatedStats: UserStats = {
         ...currentStats,
         totalMeditations: totalSessions,
+        completedMeditations: completedSessions,
+        abandonedMeditations: abandonedSessions,
+        totalMinutes,
+        averageSessionMinutes,
         currentStreak: streak,
-        lastSessionDate: new Date().toISOString(),
-        completionRate: (completedSessions / totalSessions) * 100
+        longestStreak,
+        lastSessionDate: today,
+        completionRate
       };
       
-      // Save updated stats
+      // Save updated stats to local storage
       await this.saveUserStatsToLocalStorage(userId, updatedStats);
-      console.log('✅ Local user stats updated after meditation');
+      
+      // Try to sync with server
+      try {
+        await apiClient.put(`/api/v1/user-profiles/${userId}/stats`, updatedStats);
+        console.log('✅ User stats synced with server');
+      } catch (syncError) {
+        console.log('⚠️ Failed to sync user stats with server:', syncError);
+        // Continue without throwing error - local stats are still updated
+      }
     } catch (error) {
-      console.log('❌ Failed to update local stats after meditation:', error);
+      console.log('❌ Failed to update user stats after meditation:', error);
+      throw this.handleError(error, 'Failed to update user stats after meditation');
     }
   }
 
-  // Update local user stats after journal entry
+  // Update local user stats when creating a journal entry
   async updateStatsAfterJournalEntry(): Promise<void> {
     try {
       const userId = await apiClient.getUserId();
       if (!userId) return;
       
       // Get current stats
-      const currentStats = await this.getUserStatsFromLocalStorage(userId);
-      if (!currentStats) return;
-      
-      // Update stats (no specific journal stats in current interface,
-      // but we could add them if needed)
-      
-      // For now, just update the last activity date
-      const updatedStats: UserStats = {
-        ...currentStats,
-        lastSessionDate: new Date().toISOString()
+      const currentStats = await this.getUserStatsFromLocalStorage(userId) || {
+        userId: userId,
+        daysActive: 1,
+        totalMeditations: 0,
+        completedMeditations: 0,
+        abandonedMeditations: 0,
+        totalMinutes: 0,
+        averageSessionMinutes: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        averageAnxietyReduction: 0,
+        totalAchievements: 0,
+        completionRate: 0
       };
       
-      // Save updated stats
-      await this.saveUserStatsToLocalStorage(userId, updatedStats);
-      console.log('✅ Local user stats updated after journal entry');
+      // Update days active
+      const today = new Date().toISOString().split('T')[0];
+      const lastActiveDay = currentStats.lastSessionDate 
+        ? currentStats.lastSessionDate.split('T')[0] 
+        : null;
+      
+      if (lastActiveDay !== today) {
+        const updatedStats: UserStats = {
+          ...currentStats,
+          daysActive: currentStats.daysActive + 1,
+          lastSessionDate: today
+        };
+        
+        // Save updated stats to local storage
+        await this.saveUserStatsToLocalStorage(userId, updatedStats);
+        
+        // Try to sync with server
+        try {
+          await apiClient.put(`/api/v1/user-profiles/${userId}/stats`, updatedStats);
+          console.log('✅ User stats synced with server');
+        } catch (syncError) {
+          console.log('⚠️ Failed to sync user stats with server:', syncError);
+          // Continue without throwing error - local stats are still updated
+        }
+      }
     } catch (error) {
-      console.log('❌ Failed to update local stats after journal entry:', error);
+      console.log('❌ Failed to update user stats after journal entry:', error);
+      throw this.handleError(error, 'Failed to update user stats after journal entry');
     }
   }
 
   // Save user stats to local storage
   private async saveUserStatsToLocalStorage(userId: string, stats: UserStats): Promise<void> {
     try {
-      // Get existing stats for all users
-      const statsJson = await AsyncStorage.getItem(USER_STATS_KEY);
-      const allUserStats = statsJson ? JSON.parse(statsJson) : {};
-      
-      // Update stats for this user
-      allUserStats[userId] = stats;
-      
-      // Save back to local storage
-      await AsyncStorage.setItem(USER_STATS_KEY, JSON.stringify(allUserStats));
-      console.log('💾 User stats saved to local storage');
+      const key = `${USER_STATS_KEY}:${userId}`;
+      await AsyncStorage.setItem(key, JSON.stringify(stats));
+      console.log('✅ User stats saved to local storage');
     } catch (error) {
       console.log('❌ Failed to save user stats to local storage:', error);
+      throw this.handleError(error, 'Failed to save user stats to local storage');
     }
   }
 
   // Get user stats from local storage
   private async getUserStatsFromLocalStorage(userId: string): Promise<UserStats | null> {
     try {
-      const statsJson = await AsyncStorage.getItem(USER_STATS_KEY);
-      if (!statsJson) return null;
+      const key = `${USER_STATS_KEY}:${userId}`;
+      const statsJson = await AsyncStorage.getItem(key);
       
-      const allUserStats = JSON.parse(statsJson);
-      return allUserStats[userId] || null;
+      if (!statsJson) {
+        return null;
+      }
+      
+      return JSON.parse(statsJson) as UserStats;
     } catch (error) {
       console.log('❌ Failed to get user stats from local storage:', error);
       return null;
     }
   }
 
-  // Cache user profile to AsyncStorage
+  // Cache user profile in local storage
   private async cacheUserProfile(user: User): Promise<void> {
     try {
       await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(user));
+      console.log('✅ User profile cached successfully');
     } catch (error) {
       console.log('❌ Failed to cache user profile:', error);
+      throw this.handleError(error, 'Failed to cache user profile');
     }
   }
 
-  // Get cached user profile from AsyncStorage
+  // Get cached user profile from local storage
   private async getCachedUserProfile(): Promise<User | null> {
     try {
-      const cachedData = await AsyncStorage.getItem(USER_PROFILE_KEY);
-      return cachedData ? JSON.parse(cachedData) : null;
+      const cachedProfile = await AsyncStorage.getItem(USER_PROFILE_KEY);
+      
+      if (!cachedProfile) {
+        return null;
+      }
+      
+      return JSON.parse(cachedProfile) as User;
     } catch (error) {
       console.log('❌ Failed to get cached user profile:', error);
       return null;
     }
   }
 
-  // Helper method to handle errors
+  // Handle API errors
   private handleError(error: any, defaultMessage: string): Error {
-    if (error.response?.data?.message) {
-      return new Error(error.response.data.message);
+    console.error('Error:', error);
+    
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Response data:', error.response.data);
+      console.error('Response status:', error.response.status);
+      console.error('Response headers:', error.response.headers);
+      
+      return new Error(error.response.data?.message || defaultMessage);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('Request:', error.request);
+      
+      return new Error('No response received from server');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Error message:', error.message);
+      
+      return new Error(error.message || defaultMessage);
     }
-    return new Error(defaultMessage);
   }
 }
 
 export const userProfileService = new UserProfileService();
-export default userProfileService;
+export default userProfileService; 

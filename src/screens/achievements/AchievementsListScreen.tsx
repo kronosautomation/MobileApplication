@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AchievementsStackParamList, Achievement, AchievementType } from '../../types';
 import { achievementsService } from '../../api';
 import { useAuth } from '../../context';
+import { testAchievementEndpoints } from '../../utils/apiDebugger';
 
 type AchievementsListScreenNavigationProp = NativeStackNavigationProp<
   AchievementsStackParamList,
@@ -42,6 +44,23 @@ const AchievementsListScreen: React.FC = () => {
         setAchievements(data);
       } catch (error) {
         console.error('Error fetching achievements:', error);
+        
+        // Run the API debugging utility to find working endpoints
+        try {
+          console.log('Running API endpoint debugger...');
+          await testAchievementEndpoints();
+        } catch (debugError) {
+          console.error('API debugger error:', debugError);
+        }
+        
+        // Show error alert to the user
+        Alert.alert(
+          'Error Loading Achievements', 
+          'There was a problem connecting to the server. The app is now in diagnostic mode to identify the issue.',
+          [
+            {text: 'OK', onPress: () => console.log('OK Pressed')},
+          ]
+        );
       } finally {
         setLoading(false);
       }
@@ -62,18 +81,20 @@ const AchievementsListScreen: React.FC = () => {
     const baseIconName = isUnlocked ? '' : '-outline';
     
     switch (type) {
-      case AchievementType.ConsistencyStreak:
+      case AchievementType.Streak:
         return `calendar${baseIconName}`;
-      case AchievementType.TotalMeditationTime:
+      case AchievementType.TimeSpent:
         return `time${baseIconName}`;
-      case AchievementType.AnxietyReduction:
-        return `trending-down${baseIconName}`;
+      case AchievementType.SessionCount:
+        return `leaf${baseIconName}`;
       case AchievementType.JournalEntries:
         return `journal${baseIconName}`;
-      case AchievementType.MeditationCount:
-        return `leaf${baseIconName}`;
-      case AchievementType.SpecificFocusArea:
-        return `fitness${baseIconName}`;
+      case AchievementType.CompletedCourse:
+        return `school${baseIconName}`;
+      case AchievementType.Engagement:
+        return `trending-up${baseIconName}`;
+      case AchievementType.Special:
+        return `star${baseIconName}`;
       default:
         return `trophy${baseIconName}`;
     }
@@ -81,7 +102,7 @@ const AchievementsListScreen: React.FC = () => {
   
   const renderAchievementItem = ({ item }: { item: Achievement }) => {
     // Calculate progress percentage
-    const progressPercentage = Math.round((item.progress / item.totalRequired) * 100);
+    const progressPercentage = Math.round((item.progressCurrent / item.progressTarget) * 100);
     
     return (
       <TouchableOpacity
@@ -95,14 +116,14 @@ const AchievementsListScreen: React.FC = () => {
           <Ionicons 
             name={getAchievementIconName(item.type, item.isUnlocked) as any}
             size={28} 
-            color={item.isUnlocked ? colors.primary.main : colors.neutral.main} 
+            color={item.isUnlocked ? colors.primary.main : colors.neutral.medium} 
           />
         </View>
         
         <View style={styles.achievementInfo}>
           <Text 
-            variant="subtitle" 
-            color={item.isUnlocked ? 'primary' : 'text'}
+            variant="h4" 
+            color={item.isUnlocked ? 'primary' : 'secondary'}
             numberOfLines={1}
           >
             {item.title}
@@ -130,13 +151,13 @@ const AchievementsListScreen: React.FC = () => {
                 />
               </View>
               <Text variant="caption" color="secondary" style={styles.progressText}>
-                {item.progress}/{item.totalRequired}
+                {item.progressCurrent}/{item.progressTarget}
               </Text>
             </View>
           )}
         </View>
         
-        <Ionicons name="chevron-forward" size={20} color={colors.neutral.main} />
+        <Ionicons name="chevron-forward" size={20} color={colors.neutral.medium} />
       </TouchableOpacity>
     );
   };
@@ -155,7 +176,7 @@ const AchievementsListScreen: React.FC = () => {
             styles.filterButton,
             selectedFilter === 'all' ? 
               { backgroundColor: colors.primary.main } : 
-              { backgroundColor: isDark ? colors.background.paper : colors.background.light }
+              { backgroundColor: isDark ? colors.background.paper : colors.background.default }
           ]}
           onPress={() => setSelectedFilter('all')}
         >
@@ -172,7 +193,7 @@ const AchievementsListScreen: React.FC = () => {
             styles.filterButton,
             selectedFilter === 'unlocked' ? 
               { backgroundColor: colors.primary.main } : 
-              { backgroundColor: isDark ? colors.background.paper : colors.background.light }
+              { backgroundColor: isDark ? colors.background.paper : colors.background.default }
           ]}
           onPress={() => setSelectedFilter('unlocked')}
         >
@@ -189,7 +210,7 @@ const AchievementsListScreen: React.FC = () => {
             styles.filterButton,
             selectedFilter === 'locked' ? 
               { backgroundColor: colors.primary.main } : 
-              { backgroundColor: isDark ? colors.background.paper : colors.background.light }
+              { backgroundColor: isDark ? colors.background.paper : colors.background.default }
           ]}
           onPress={() => setSelectedFilter('locked')}
         >
@@ -218,8 +239,8 @@ const AchievementsListScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="trophy-outline" size={60} color={colors.neutral.main} />
-              <Text variant="subtitle" color="text" style={styles.emptyText}>
+              <Ionicons name="trophy-outline" size={60} color={colors.neutral.medium} />
+              <Text variant="h4" color="secondary" style={styles.emptyText}>
                 No achievements found
               </Text>
               <Text variant="body2" color="secondary" style={styles.emptySubtext}>

@@ -21,9 +21,9 @@ class JournalService {
         queryParams.append('endDate', endDate.toISOString());
       }
       
-      // Fetch from API
+      // Fetch from API - Fix: Use the correct API path with "/api/v1" prefix
       const queryString = queryParams.toString();
-      const url = `/performance-journal${queryString ? `?${queryString}` : ''}`;
+      const url = `/api/v1/performance-journal${queryString ? `?${queryString}` : ''}`;
       
       try {
         const response = await apiClient.get(url);
@@ -143,8 +143,8 @@ class JournalService {
         return journal;
       }
       
-      // Otherwise fetch from the backend
-      const response = await apiClient.get<any>(`/performance-journal/${id}`);
+      // Otherwise fetch from the backend - Fix: Use the correct API path with "/api/v1" prefix
+      const response = await apiClient.get<any>(`/api/v1/performance-journal/${id}`);
       console.log('Raw journal detail response:', response);
 
       // Log the raw values for debugging
@@ -267,7 +267,8 @@ class JournalService {
         // Log the outgoing request data
         console.log('Sending to API:', requestData);
         
-        const response = await apiClient.post<PerformanceJournal>('/performance-journal', requestData);
+        // Fix: Use the correct API path with "/api/v1" prefix
+        const response = await apiClient.post<PerformanceJournal>('/api/v1/performance-journal', requestData);
         console.log('Received response from API:', response);
         
         // Update local user stats
@@ -322,7 +323,8 @@ class JournalService {
   // Get available focus areas from backend
   async getFocusAreas(): Promise<any[]> {
     try {
-      const response = await apiClient.get<any[]>('/performance-focus-areas');
+      // Fix: Use the correct API path with "/api/v1" prefix
+      const response = await apiClient.get<any[]>('/api/v1/performance-focus-areas');
       return response;
     } catch (error) {
       console.error('Error fetching focus areas:', error);
@@ -343,7 +345,8 @@ class JournalService {
   // Update an existing journal entry
   async updateJournal(id: string, journal: Partial<PerformanceJournal>): Promise<PerformanceJournal> {
     try {
-      const response = await apiClient.put<PerformanceJournal>(`/performance-journal/${id}`, {
+      // Fix: Use the correct API path with "/api/v1" prefix
+      const response = await apiClient.put<PerformanceJournal>(`/api/v1/performance-journal/${id}`, {
         ...journal,
         id, // Ensure the ID is included
       });
@@ -374,7 +377,8 @@ class JournalService {
       }
       
       // Otherwise delete from the API
-      await apiClient.delete(`/performance-journal/${id}`);
+      // Fix: Use the correct API path with "/api/v1" prefix
+      await apiClient.delete(`/api/v1/performance-journal/${id}`);
       return true;
     } catch (error) {
       throw this.handleError(error, 'Failed to delete journal entry');

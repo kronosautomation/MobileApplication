@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MeditationSession, PerformanceJournal } from '../../types';
+import { PerformanceJournal } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { BarChart, LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { useAuth } from '../../context';
 import { api } from '../../api';
+import { userProfileService, UserStats } from '../../api/userProfileService';
 
 // Define a local type that includes the Statistics screen
 type ProfileStackParamList = {
@@ -31,11 +32,9 @@ const StatisticsScreen: React.FC = () => {
   const { colors } = currentTheme;
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-  const [meditationSessions, setMeditationSessions] = useState<MeditationSession[]>([]);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [journalEntries, setJournalEntries] = useState<PerformanceJournal[]>([]);
-  const [totalMeditationTime, setTotalMeditationTime] = useState(0);
-  const [totalSessions, setTotalSessions] = useState(0);
-  const [averageAnxietyReduction, setAverageAnxietyReduction] = useState(0);
+  const [meditationFrequency, setMeditationFrequency] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
 
   // Chart dimensions
   const screenWidth = Dimensions.get('window').width - 32;
@@ -66,72 +65,21 @@ const StatisticsScreen: React.FC = () => {
       try {
         console.log('Fetching statistics data for user:', user.id);
         
-        // Fetch meditation sessions
-        const sessionsResponse = await api.getMeditationSessions(user.id);
-        console.log(`Retrieved ${sessionsResponse.data.length} meditation sessions`);
-        setMeditationSessions(sessionsResponse.data);
+        // Fetch user stats from API
+        const stats = await userProfileService.getUserStats();
+        console.log('User stats retrieved:', stats);
+        setUserStats(stats);
         
         // Fetch journal entries
         const journalsResponse = await api.getJournalEntries(user.id);
         console.log(`Retrieved ${journalsResponse.data.length} journal entries`);
         setJournalEntries(journalsResponse.data);
         
-        // Calculate statistics
-        if (sessionsResponse.data.length > 0) {
-          // Total meditation time - ensure we're handling the data correctly
-          const totalTime = sessionsResponse.data.reduce(
-            (sum, session) => {
-              // Parse duration if it's not a number
-              const durationSeconds = typeof session.durationInSeconds === 'number' 
-                ? session.durationInSeconds 
-                : parseInt(String(session.durationInSeconds || '0'), 10);
-              return sum + durationSeconds;
-            }, 0
-          );
-          
-          console.log(`Total meditation time calculated: ${totalTime} seconds`);
-          setTotalMeditationTime(totalTime);
-          setTotalSessions(sessionsResponse.data.length);
-          
-          // Calculate average anxiety reduction (for sessions with before/after values)
-          const sessionsWithAnxietyData = sessionsResponse.data.filter(
-            session => {
-              // Ensure we're checking for undefined or null values
-              const hasBefore = session.anxietyBefore !== undefined && session.anxietyBefore !== null;
-              const hasAfter = session.anxietyAfter !== undefined && session.anxietyAfter !== null;
-              return hasBefore && hasAfter;
-            }
-          );
-          
-          console.log(`Sessions with anxiety data: ${sessionsWithAnxietyData.length}`);
-          
-          if (sessionsWithAnxietyData.length > 0) {
-            const totalReduction = sessionsWithAnxietyData.reduce(
-              (sum, session) => {
-                // Parse anxiety values if they're not numbers
-                const before = typeof session.anxietyBefore === 'number' 
-                  ? session.anxietyBefore 
-                  : parseInt(String(session.anxietyBefore || '0'), 10);
-                  
-                const after = typeof session.anxietyAfter === 'number' 
-                  ? session.anxietyAfter 
-                  : parseInt(String(session.anxietyAfter || '0'), 10);
-                  
-                return sum + (before - after);
-              }, 0
-            );
-            
-            const avgReduction = totalReduction / sessionsWithAnxietyData.length;
-            console.log(`Average anxiety reduction calculated: ${avgReduction}`);
-            setAverageAnxietyReduction(avgReduction);
-          }
-        } else {
-          // Set default values if no sessions found
-          console.log('No meditation sessions found, setting default values');
-          setTotalMeditationTime(0);
-          setTotalSessions(0);
-          setAverageAnxietyReduction(0);
-        }
+        // Generate meditation frequency data for the last 7 days
+        // In a real implementation, you would calculate this from actual data
+        // This is just a placeholder
+        const dummyFrequency = [2, 1, 0, 1, 3, 1, 2]; // Example data
+        setMeditationFrequency(dummyFrequency);
       } catch (error) {
         console.error('Error fetching statistics:', error);
       } finally {
@@ -151,16 +99,11 @@ const StatisticsScreen: React.FC = () => {
       return date.toLocaleDateString('en-US', { weekday: 'short' });
     });
     
-    const sessionsPerDay = last7Days.map(day => {
-      // This is simplified logic - in a real app you'd properly count sessions per day
-      return Math.floor(Math.random() * 3); // Simulated data
-    });
-    
     return {
       labels: last7Days,
       datasets: [
         {
-          data: sessionsPerDay,
+          data: meditationFrequency,
           color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
         }
       ],
@@ -183,15 +126,15 @@ const StatisticsScreen: React.FC = () => {
     };
   };
   
-  // Format seconds to a readable duration
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
+  // Format duration from minutes to readable format
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
     
     if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+      return `${hours}h ${remainingMinutes}m`;
     }
-    return `${minutes}m`;
+    return `${remainingMinutes}m`;
   };
 
   if (isLoading) {
@@ -234,7 +177,7 @@ const StatisticsScreen: React.FC = () => {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={[styles.statValue, { color: colors.primary.main }]}>
-                {totalSessions}
+                {userStats?.totalMeditations || 0}
               </Text>
               <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
                 Total Sessions
@@ -243,7 +186,7 @@ const StatisticsScreen: React.FC = () => {
             
             <View style={styles.statItem}>
               <Text style={[styles.statValue, { color: colors.primary.main }]}>
-                {formatDuration(totalMeditationTime)}
+                {formatDuration(userStats?.totalMinutes || 0)}
               </Text>
               <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
                 Total Time
@@ -252,10 +195,39 @@ const StatisticsScreen: React.FC = () => {
             
             <View style={styles.statItem}>
               <Text style={[styles.statValue, { color: colors.primary.main }]}>
-                {averageAnxietyReduction.toFixed(1)}
+                {(userStats?.averageAnxietyReduction || 0).toFixed(1)}
               </Text>
               <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
                 Avg. Anxiety Reduction
+              </Text>
+            </View>
+          </View>
+          
+          <View style={[styles.statsRow, { marginTop: 24 }]}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: colors.primary.main }]}>
+                {userStats?.completedMeditations || 0}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
+                Completed
+              </Text>
+            </View>
+            
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: colors.primary.main }]}>
+                {userStats?.currentStreak || 0}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
+                Current Streak
+              </Text>
+            </View>
+            
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: colors.primary.main }]}>
+                {(userStats?.completionRate || 0).toFixed(1)}%
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
+                Completion Rate
               </Text>
             </View>
           </View>
@@ -323,19 +295,19 @@ const StatisticsScreen: React.FC = () => {
             
             <View style={styles.statItem}>
               <Text style={[styles.statValue, { color: colors.primary.main }]}>
-                3
+                {userStats?.daysActive || 0}
               </Text>
               <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
-                This Week
+                Days Active
               </Text>
             </View>
             
             <View style={styles.statItem}>
               <Text style={[styles.statValue, { color: colors.primary.main }]}>
-                12
+                {userStats?.totalAchievements || 0}
               </Text>
               <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
-                This Month
+                Achievements
               </Text>
             </View>
           </View>

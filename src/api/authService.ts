@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { getActionPath, getApiPath, getResourcePath, getSubResourcePath } from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoginCredentials, RegisterData, AuthTokens, User } from '../types';
 
@@ -19,7 +19,7 @@ class AuthService {
         firstName?: string;
         lastName?: string;
         user?: User;
-      }>('/auth/login', {
+      }>(getActionPath('auth', 'login'), {
         email: credentials.email,
         password: credentials.password,
         deviceToken: 'mobile-device' // Use a device identifier
@@ -84,7 +84,7 @@ class AuthService {
         lastName: string;
         accessToken?: string;
         refreshToken?: string;
-      }>('/auth/register', {
+      }>(getActionPath('auth', 'register'), {
         email: data.email,
         password: data.password,
         firstName: data.firstName || '',
@@ -151,7 +151,7 @@ class AuthService {
       console.log('🚪 Attempting to logout');
       
       // Call logout endpoint
-      await apiClient.post('/auth/logout');
+      await apiClient.post(getActionPath('auth', 'logout'));
       
       console.log('✅ Logout successful');
       
@@ -170,7 +170,7 @@ class AuthService {
   async verifyToken(): Promise<boolean> {
     try {
       console.log('🔍 Verifying token');
-      await apiClient.get('/auth/verify');
+      await apiClient.get(getActionPath('auth', 'verify'));
       console.log('✅ Token is valid');
       return true;
     } catch (error) {
@@ -202,7 +202,7 @@ class AuthService {
         const userId = await apiClient.getUserId();
         if (userId) {
           console.log(`Fetching profile for user ID: ${userId}`);
-          const user = await apiClient.get<User>(`/api/v1/user-profiles/${userId}`);
+          const user = await apiClient.get<User>(getResourcePath('user-profiles', userId));
           console.log('✅ User profile retrieved successfully');
           // Cache it for next time
           await AsyncStorage.setItem('@MindfulMastery:user', JSON.stringify(user));
@@ -215,7 +215,7 @@ class AuthService {
       // 3. Fallback to modern endpoint without userId as last resort
       try {
         console.log('⚠️ No user ID available, attempting alternative endpoint');
-        const user = await apiClient.get<User>('/api/v1/user-profiles/me');
+        const user = await apiClient.get<User>(getApiPath('user-profiles/me'));
         console.log('✅ User profile retrieved successfully (me endpoint)');
         // Cache it for next time
         await AsyncStorage.setItem('@MindfulMastery:user', JSON.stringify(user));
@@ -237,8 +237,8 @@ class AuthService {
     try {
       console.log('🔑 Requesting password reset for:', email);
       
-      // Updated to use new kebab-case API route pattern
-      await apiClient.post('/api/v1/auth/password-reset/request', { email });
+      // Use standardized API route pattern
+      await apiClient.post(getApiPath('auth/password-reset/request'), { email });
       
       console.log('✅ Password reset request sent');
     } catch (error) {
@@ -252,8 +252,8 @@ class AuthService {
     try {
       console.log('🔐 Resetting password with token');
       
-      // Updated to use new kebab-case API route pattern
-      await apiClient.post('/api/v1/auth/password-reset/confirm', { token, newPassword });
+      // Use standardized API route pattern
+      await apiClient.post(getApiPath('auth/password-reset/confirm'), { token, newPassword });
       
       console.log('✅ Password reset successful');
     } catch (error) {
@@ -267,9 +267,9 @@ class AuthService {
     try {
       console.log('🔐 Updating password');
       
-      // Updated to use new kebab-case API route pattern
+      // Use standardized API route pattern
       const userId = await apiClient.getUserId();
-      await apiClient.put(`/api/v1/user-profiles/${userId}/password`, {
+      await apiClient.put(getSubResourcePath('user-profiles', userId, 'password'), {
         currentPassword,
         newPassword,
         confirmNewPassword
@@ -288,7 +288,7 @@ class AuthService {
       console.log('👤 Updating user profile');
       
       const userId = await apiClient.getUserId();
-      const response = await apiClient.put<User>(`/api/v1/user-profiles/${userId}`, userData);
+      const response = await apiClient.put<User>(getResourcePath('user-profiles', userId), userData);
       
       console.log('✅ User profile updated successfully');
       

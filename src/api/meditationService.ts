@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { getActionPath, getApiPath, getResourcePath, getSubResourcePath } from './apiClient';
 import { GuidedMeditation, DifficultyLevel, MeditationSession } from '../types';
 import userProfileService from './userProfileService';
 
@@ -43,7 +43,7 @@ class MeditationService {
         items: GuidedMeditation[];
         totalCount: number;
         totalPages: number;
-      }>(`/guided-meditation${queryParams}`);
+      }>(getApiPath(`guided-meditations${queryParams}`));
 
       return {
         meditations: response.items,
@@ -59,7 +59,7 @@ class MeditationService {
   async getMeditationById(id: string, includeStreamingUrl: boolean = true): Promise<GuidedMeditation> {
     try {
       const response = await apiClient.get<GuidedMeditation>(
-        `/guided-meditation/${id}?includeStreamingUrl=${includeStreamingUrl}`
+        `${getResourcePath('guided-meditations', id)}?includeStreamingUrl=${includeStreamingUrl}`
       );
       return response;
     } catch (error) {
@@ -71,7 +71,7 @@ class MeditationService {
   async getFeaturedMeditations(take: number = 5): Promise<GuidedMeditation[]> {
     try {
       const response = await apiClient.get<{ meditations: GuidedMeditation[] }>(
-        `/guided-meditation/featured?take=${take}`
+        `${getApiPath('guided-meditations/featured')}?take=${take}`
       );
       return response.meditations;
     } catch (error) {
@@ -83,7 +83,7 @@ class MeditationService {
   async getAccessibleMeditations(): Promise<string[]> {
     try {
       const response = await apiClient.get<{ meditationIds: string[] }>(
-        '/subscription/accessible-meditations'
+        getApiPath('subscriptions/accessible-content')
       );
       return response.meditationIds;
     } catch (error) {
@@ -98,7 +98,7 @@ class MeditationService {
     performanceFocusArea?: number
   ): Promise<MeditationSession> {
     try {
-      const response = await apiClient.post<MeditationSession>('/meditation/session/start', {
+      const response = await apiClient.post<MeditationSession>(getActionPath('meditation-sessions', 'start'), {
         meditationId,
         anxietyBefore,
         performanceFocusArea,
@@ -118,7 +118,7 @@ class MeditationService {
     moodAfter?: string
   ): Promise<MeditationSession> {
     try {
-      const response = await apiClient.post<MeditationSession>('/meditation/session/complete', {
+      const response = await apiClient.post<MeditationSession>(getActionPath('meditation-sessions', 'complete'), {
         sessionId,
         anxietyAfter,
         techniquesUsed,
@@ -153,7 +153,7 @@ class MeditationService {
     endDate?: Date
   ): Promise<MeditationSession[]> {
     try {
-      let url = '/meditation/sessions';
+      let url = getApiPath('meditation-sessions');
       const params = [];
       
       if (startDate) {
@@ -183,7 +183,7 @@ class MeditationService {
     calendarEndDate?: Date
   ): Promise<MeditationStats> {
     try {
-      let url = '/meditation/stats';
+      let url = getApiPath('meditation-sessions/stats');
       const params = [];
       
       if (includeCalendar) {

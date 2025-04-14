@@ -273,24 +273,28 @@ export interface SubscriptionFeatures {
 // Achievement Types
 export interface Achievement {
   id: string;
-  userId: string;
-  type: AchievementType;
   title: string;
   description: string;
-  iconUrl: string;
-  unlockedAt?: string;
-  progress: number;
-  totalRequired: number;
+  imageUrl?: string;
+  points: number;
+  type: AchievementType;
+  criteria?: string;
+  progressTarget: number;
   isUnlocked: boolean;
+  progressCurrent: number;
+  unlockedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export enum AchievementType {
-  ConsistencyStreak = 0,
-  TotalMeditationTime = 1,
-  AnxietyReduction = 2,
-  JournalEntries = 3,
-  MeditationCount = 4,
-  SpecificFocusArea = 5,
+  Streak = 0,
+  SessionCount = 1,
+  TimeSpent = 2,
+  CompletedCourse = 3,
+  JournalEntries = 4,
+  Engagement = 5,
+  Special = 6
 }
 
 // Meditation Stats Types

@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { getApiPath } from './apiClient';
 import authService from './authService';
 import meditationService from './meditationService';
 import journalService from './journalService';
@@ -19,7 +19,9 @@ export const api = {
     try {
       console.log('Fetching meditation sessions for user:', userId);
       // Use the real API endpoint for meditation history
-      const sessions = await apiClient.get<any[]>('/meditation/history');
+      const endpointPath = getApiPath('meditation/history');
+      console.log('Fetching meditation sessions from:', endpointPath);
+      const sessions = await apiClient.get<any[]>(endpointPath);
       
       // Process and normalize the data to ensure consistent types
       const processedSessions = sessions.map((session: any) => {
@@ -62,10 +64,10 @@ export const api = {
     try {
       console.log('Fetching journal entries for user:', userId);
       // Use the real API endpoint for user journals
-      const journals = await apiClient.get<any[]>('/performance-journal');
+      const response = await apiClient.get<any>('/api/v1/performance-journal');
       
       // Process and normalize the data to ensure consistent types
-      const processedJournals = journals.map((journal: any) => {
+      const processedJournals = (response.entries || []).map((journal: any) => {
         const anxietyLevel = typeof journal.anxietyLevel === 'number' 
           ? journal.anxietyLevel 
           : journal.anxietyLevel ? parseInt(String(journal.anxietyLevel), 10) : 5;
@@ -147,6 +149,7 @@ export const api = {
 
 export {
   apiClient,
+  getApiPath,
   authService,
   meditationService,
   journalService,

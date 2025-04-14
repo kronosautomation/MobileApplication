@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { getActionPath, getApiPath, getResourcePath } from './apiClient';
 import { SubscriptionInfo, SubscriptionStatus, SubscriptionTier } from '../types';
 import * as Purchases from 'react-native-purchases';
 import Constants from 'expo-constants';
@@ -43,7 +43,7 @@ class SubscriptionService {
   // Get current subscription status from backend
   async getSubscriptionStatus(): Promise<SubscriptionInfo> {
     try {
-      const response = await apiClient.get<SubscriptionInfo>('/subscription/status');
+      const response = await apiClient.get<SubscriptionInfo>(getApiPath('subscriptions/status'));
       return response;
     } catch (error) {
       throw this.handleError(error, 'Failed to get subscription status');
@@ -75,7 +75,7 @@ class SubscriptionService {
       
       if (isPremium) {
         // Notify our backend about the purchase
-        await apiClient.post('/subscription/purchase', {
+        await apiClient.post(getActionPath('subscriptions', 'purchase'), {
           productId: package_.product.identifier,
           transactionId: customerInfo.originalAppUserId // This should be replaced with the actual transaction ID if available
         });
@@ -100,7 +100,7 @@ class SubscriptionService {
       
       if (isPremium) {
         // Notify our backend about the restored purchase
-        await apiClient.post('/subscription/restore', {
+        await apiClient.post(getActionPath('subscriptions', 'restore'), {
           userId: await apiClient.getUserId()
         });
       }
@@ -114,7 +114,7 @@ class SubscriptionService {
   // Cancel subscription
   async cancelSubscription(reason?: string): Promise<void> {
     try {
-      await apiClient.post('/subscription/cancel', reason);
+      await apiClient.post(getActionPath('subscriptions', 'cancel'), reason);
     } catch (error) {
       throw this.handleError(error, 'Failed to cancel subscription');
     }

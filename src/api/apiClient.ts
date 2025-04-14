@@ -1,14 +1,101 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { jwtDecode } from 'jwt-decode';
 import * as Network from 'expo-network';
 
+// Get the appropriate API base URL based on platform and environment
+const getApiBaseUrl = () => {
+  const isDevelopment = Boolean(__DEV__);
+  const extra = Constants.expoConfig?.extra || {};
+  
+  if (!isDevelopment) {
+    return extra.apiBaseUrlProduction || 'https://api.mindfulmastery.app';
+  }
+  
+  if (Platform.OS === 'ios') {
+    return extra.apiBaseUrlIos || 'http://localhost:5000';
+  }
+  
+  return extra.apiBaseUrl || 'http://10.0.2.2:5000';
+};
+
 // Environment variables - get from .env file via Constants
-const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl || 'http://localhost:5000/api/v1';
+const API_BASE_URL = getApiBaseUrl();
+
+// Create standardized API paths
+const BASE_API_PATH = '/api';
+const API_VERSION = 'v1';
+
+// Function to construct API paths consistently
+function getApiPath(resource: string, includeVersion = true): string {
+  // Make sure resource doesn't start with a slash
+  const cleanResource = resource.startsWith('/') ? resource.substring(1) : resource;
+  
+  // Construct the path with or without version
+  return includeVersion 
+    ? `${BASE_API_PATH}/${API_VERSION}/${cleanResource}` 
+    : `${BASE_API_PATH}/${cleanResource}`;
+}
+
+// Helper function for resource with ID
+function getResourcePath(resource: string, id: string | number): string {
+  return getApiPath(`${resource}/${id}`);
+}
+
+// Helper function for sub-resources
+function getSubResourcePath(resource: string, id: string | number, subResource: string): string {
+  return getApiPath(`${resource}/${id}/${subResource}`);
+}
+
+// Helper function for action endpoints
+function getActionPath(resource: string, action: string): string {
+  return getApiPath(`${resource}/${action}`);
+}
+
+// Route mappings for API standardization (old routes to new routes)
+// This helps with transition - if servers are updated before clients
+const ROUTE_MAPPINGS: Record<string, string> = {
+  // Authentication
+  '/auth/login': getActionPath('auth', 'login'),
+  '/auth/register': getActionPath('auth', 'register'),
+  '/auth/logout': getActionPath('auth', 'logout'),
+  '/auth/refresh-token': getActionPath('auth', 'refresh-token'),
+  '/auth/verify': getActionPath('auth', 'verify'),
+  '/api/v1/auth/password-reset': getApiPath('auth/password-reset'),
+  
+  // Guided Meditations
+  '/guided-meditation': getApiPath('guided-meditations'),
+  
+  // User Profiles
+  '/user-profile': getApiPath('user-profiles'),
+  '/api/v1/user-profile': getApiPath('user-profiles'),
+  
+  // Meditation Sessions
+  '/meditation/session/start': getActionPath('meditation-sessions', 'start'),
+  '/meditation/session/complete': getActionPath('meditation-sessions', 'complete'),
+  '/meditation/sessions': getApiPath('meditation-sessions'),
+  '/meditation/stats': getApiPath('meditation-sessions/stats'),
+  
+  // Subscriptions
+  '/subscription': getApiPath('subscriptions'),
+  '/subscription/status': getApiPath('subscriptions/status'),
+  '/subscription/purchase': getActionPath('subscriptions', 'purchase'),
+  '/subscription/restore': getActionPath('subscriptions', 'restore'),
+  '/subscription/cancel': getActionPath('subscriptions', 'cancel'),
+  '/subscription/accessible-meditations': getApiPath('subscriptions/accessible-content'),
+  
+  // Performance Journal
+  '/journal': getApiPath('journal-entries'),
+  
+  // Achievements
+  '/achievements': getApiPath('achievements'),
+};
 
 // Log the API base URL during development
 console.log('🔌 API Base URL:', API_BASE_URL);
+console.log('🔌 API Path Pattern:', `${API_BASE_URL}${getApiPath('resource/action')}`);
 
 // Storage keys
 const ACCESS_TOKEN_KEY = '@MindfulMastery:token';
@@ -26,7 +113,7 @@ interface JwtToken {
 class ApiClient {
   private api: AxiosInstance;
   private refreshPromise: Promise<string> | null = null;
-  private isNetworkConnected: boolean = true;
+  public isNetworkConnected: boolean = true;
 
   constructor() {
     // Create axios instance with default config
@@ -42,7 +129,7 @@ class ApiClient {
     // Init network state
     this.checkNetworkConnection();
 
-    // Setup request interceptor for adding auth token
+    // Setup request interceptor for adding auth token and handling route mapping
     this.api.interceptors.request.use(
       async (config) => {
         // Log the request URL and method
@@ -104,6 +191,21 @@ class ApiClient {
         
         const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
         
+        // Handle 301 redirects from old routes to new routes
+        if (error.response?.status === 301 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          console.log('🔄 Following redirection from old route to new route');
+          
+          // Extract the location header
+          const newLocation = error.response.headers['location'];
+          if (newLocation) {
+            console.log(`🔄 Redirected to: ${newLocation}`);
+            // Update the URL and retry the request
+            originalRequest.url = newLocation;
+            return this.api(originalRequest);
+          }
+        }
+        
         // Handle 401 Unauthorized errors by refreshing token
         if (
           error.response?.status === 401 &&
@@ -140,7 +242,8 @@ class ApiClient {
   async checkNetworkConnection(): Promise<boolean> {
     try {
       const networkState = await Network.getNetworkStateAsync();
-      this.isNetworkConnected = networkState.isConnected && (networkState.isInternetReachable !== false);
+      const isInternetReachable = networkState.isInternetReachable === undefined ? true : networkState.isInternetReachable;
+      this.isNetworkConnected = networkState.isConnected && (isInternetReachable as boolean);
       console.log(`🌐 Network status: ${this.isNetworkConnected ? 'Connected' : 'Disconnected'}`);
       return this.isNetworkConnected;
     } catch (error) {
@@ -275,9 +378,10 @@ class ApiClient {
         // Call the refresh token endpoint with error handling
         try {
           // Call the refresh token endpoint
-          const response = await this.api.post<{ accessToken: string; refreshToken: string }>('/auth/refresh-token', {
-            refreshToken,
-          });
+          const response = await this.api.post<{ accessToken: string; refreshToken: string }>(
+            getActionPath('auth', 'refresh-token'), 
+            { refreshToken }
+          );
           
           // Save the new tokens
           const { accessToken, refreshToken: newRefreshToken } = response.data;
@@ -315,6 +419,11 @@ class ApiClient {
       this.handleApiError(error);
       throw error;
     }
+  }
+  
+  // Expose the axios instance for debugging purposes
+  getAxiosInstance() {
+    return this.api;
   }
 
   // Generic POST request method
@@ -387,4 +496,8 @@ class ApiClient {
 
 // Create and export a singleton instance
 export const apiClient = new ApiClient();
+
+// Export the helpers for constructing API paths
+export { getApiPath, getResourcePath, getSubResourcePath, getActionPath };
+
 export default apiClient;

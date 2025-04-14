@@ -68,7 +68,7 @@ const saveJournalToBackend = async (journal: PerformanceJournal): Promise<boolea
       copingStrategies: Array.isArray(journal.copingStrategies) ? journal.copingStrategies : [],
     };
     
-    await apiClient.post('/performance-journal', requestData);
+    await apiClient.post('/api/v1/performance-journal', requestData);
     return true;
   } catch (error) {
     console.error('Error saving journal to backend:', error);

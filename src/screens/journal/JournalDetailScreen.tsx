@@ -8,13 +8,7 @@ import { PerformanceJournal, PerformanceFocusArea } from '../../types';
 import { Text, Button } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { journalService } from '../../api/journalService';
-
-type JournalStackParamList = {
-  JournalDetail: {
-    journalId: string;
-    refresh?: boolean;
-  };
-};
+import { JournalStackParamList } from '../../navigation/stacks/JournalStack.types';
 
 type JournalDetailScreenNavigationProp = NativeStackNavigationProp<
   JournalStackParamList,
@@ -81,7 +75,7 @@ const JournalDetailScreen: React.FC = () => {
   
   // Handle edit
   const handleEdit = () => {
-    navigation.navigate('JournalDetail', { journalId });
+    navigation.navigate('NewJournalEntry', { existingJournalId: journalId });
   };
   
   // Handle delete

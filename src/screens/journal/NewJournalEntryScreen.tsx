@@ -20,6 +20,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { journalService } from '../../api/journalService'; // Import the service
 import { PerformanceJournal, PerformanceFocusArea } from '../../types'; // Import the types
 import { useTheme } from '../../context/ThemeContext'; // Import theme context
+import { useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { MainTabParamList } from '../../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Props = NativeStackScreenProps<JournalStackParamList, 'NewJournalEntry'>;
 
@@ -73,13 +77,16 @@ const focusAreaOptions = [
 const NewJournalEntryScreen = ({ route, navigation }: Props) => {
   const { existingJournalId } = route.params || {};
   const [isEditMode, setIsEditMode] = useState(!!existingJournalId);
-  const { currentTheme, isDark } = useTheme(); // Get theme context
+  const { currentTheme, isDark } = useTheme();
   const { colors } = currentTheme;
   // Basic info
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [loadingJournal, setLoadingJournal] = useState(!!existingJournalId);
+  const [isLimitReached, setIsLimitReached] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Premium'>('Free');
+  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   
   // Emotion section
   const [selectedMood, setSelectedMood] = useState('');
@@ -98,7 +105,7 @@ const NewJournalEntryScreen = ({ route, navigation }: Props) => {
   const [confidenceLevel, setConfidenceLevel] = useState(5);
   
   // Advanced fields
-  const [selectedFocusArea, setSelectedFocusArea] = useState(null);
+  const [selectedFocusArea, setSelectedFocusArea] = useState<PerformanceFocusArea | null>(null);
   const [selectedCopingStrategies, setSelectedCopingStrategies] = useState<string[]>([]);
   const [selectedTechniques, setSelectedTechniques] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(true);
@@ -119,6 +126,8 @@ const NewJournalEntryScreen = ({ route, navigation }: Props) => {
   
   // Load existing journal from the API
   const loadExistingJournal = async () => {
+    if (!existingJournalId) return;
+    
     setLoadingJournal(true);
     try {
       const journal = await journalService.getJournalById(existingJournalId);
@@ -135,7 +144,7 @@ const NewJournalEntryScreen = ({ route, navigation }: Props) => {
       setReflection(journal.reflection || '');
       setAnxietyLevel(journal.anxietyLevel || 5);
       setConfidenceLevel(journal.confidenceLevel || 5);
-      setSelectedFocusArea(journal.performanceFocusArea);
+      setSelectedFocusArea(journal.performanceFocusArea || null);
       setIsPrivate(journal.isPrivate !== false); // Default to private
       
       // Handle arrays
@@ -201,41 +210,77 @@ const NewJournalEntryScreen = ({ route, navigation }: Props) => {
     }
   };
   
+  // Check subscription status and monthly limit
+  useEffect(() => {
+    const checkSubscriptionAndLimit = async () => {
+      try {
+        const subscriptionJson = await AsyncStorage.getItem('@MindfulMastery:subscription');
+        const subscription = subscriptionJson ? JSON.parse(subscriptionJson) : { tier: 'Free' };
+        setSubscriptionTier(subscription.tier);
+        
+        if (subscription.tier === 'Free') {
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+          
+          const entries = await journalService.getJournals(startOfMonth, endOfMonth);
+          setIsLimitReached(entries.length >= 5);
+        }
+      } catch (error) {
+        console.error('Error checking subscription and limit:', error);
+      }
+    };
+
+    checkSubscriptionAndLimit();
+  }, []);
+
+  const handleUpgradePress = () => {
+    tabNavigation.navigate('Profile', { screen: 'Subscription' });
+  };
+  
   // Save the journal entry
   const saveEntry = async () => {
     if (!title.trim() || isLoading) {
+      return;
+    }
+
+    // Only check subscription limit for new entries, not edits
+    if (!isEditMode && subscriptionTier === 'Free' && isLimitReached) {
+      Alert.alert(
+        "Monthly Limit Reached",
+        "You have reached your monthly limit of 5 journal entries. Please upgrade to Premium to create more entries.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Upgrade", onPress: handleUpgradePress }
+        ]
+      );
       return;
     }
     
     setIsLoading(true);
     
     const journalData: Partial<PerformanceJournal> = {
-      title: title.trim() || 'Untitled Journal',
-      date: new Date().toISOString(),
+      title: title.trim(),
+      date: date.toISOString(),
+      situation: situation.trim(),
+      thoughts: thoughts.trim(),
+      physicalSensations: physicalSensations.trim(),
+      actions: actions.trim(),
+      outcome: outcome.trim(),
+      reflection: reflection.trim(),
       anxietyLevel,
       confidenceLevel,
-      performanceFocusArea: selectedFocusArea, // Always provide a valid value
+      performanceFocusArea: selectedFocusArea || undefined,
       emotions: selectedMood ? [selectedMood] : [],
       techniquesUsed: selectedTechniques,
       isPrivate,
-      event: showEventFields ? eventName.trim() : undefined,
-      situation: situation.trim() || undefined,
-      thoughts: thoughts.trim() || undefined,
-      physicalSensations: physicalSensations.trim() || undefined,
-      actions: actions.trim() || undefined,
-      outcome: outcome.trim() || undefined,
-      reflection: reflection.trim() || undefined,
-      copingStrategies: selectedCopingStrategies,
     };
 
     try {
-      if (isEditMode) {
-        // Update existing journal entry
+      if (isEditMode && existingJournalId) {
         await journalService.updateJournal(existingJournalId, journalData);
-        // Return directly to detail page with refreshed data
         navigation.navigate('JournalDetail', { journalId: existingJournalId, refresh: Date.now() });
       } else {
-        // Create new journal entry
         await journalService.createJournal(journalData as Omit<PerformanceJournal, 'id' | 'userId' | 'createdAt' | 'updatedAt'>);
         Alert.alert(
           "Success",
@@ -245,7 +290,18 @@ const NewJournalEntryScreen = ({ route, navigation }: Props) => {
       }
     } catch (error: any) {
       console.error("Failed to save journal entry:", error);
-      Alert.alert("Error", "Could not save journal entry.");
+      if (error.message?.includes('monthly limit')) {
+        Alert.alert(
+          "Monthly Limit Reached",
+          "You have reached your monthly limit of 5 journal entries. Please upgrade to Premium to create more entries.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Upgrade", onPress: handleUpgradePress }
+          ]
+        );
+      } else {
+        Alert.alert("Error", "Could not save journal entry.");
+      }
     } finally {
       setIsLoading(false);
     }
